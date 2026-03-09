@@ -3,6 +3,7 @@ import React from 'react';
 import { useParams } from 'react-router';
 import { usePipelineRunQuery } from '~/app/hooks/queries';
 import { isTerminalState } from '~/app/utilities/pipelineRunStates';
+import AutoragLeaderboard from './AutoragLeaderboard';
 
 function AutoragResults(): React.JSX.Element {
   const { namespace, runId } = useParams<{ namespace: string; runId: string }>();
@@ -40,6 +41,8 @@ function AutoragResults(): React.JSX.Element {
     </div>
   );
 
+  const taskDetails = pipelineRun?.run_details?.task_details ?? [];
+
   return (
     <div style={{ padding: '20px' }}>
       {isPolling && (
@@ -65,6 +68,12 @@ function AutoragResults(): React.JSX.Element {
           {JSON.stringify(displayData, null, 2)}
         </pre>
       </ExpandableSection>
+
+      {taskDetails.length > 0 && (
+        <div style={{ marginTop: '24px' }}>
+          <AutoragLeaderboard taskDetails={taskDetails} />
+        </div>
+      )}
     </div>
   );
 }

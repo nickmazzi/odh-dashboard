@@ -63,6 +63,31 @@ export type PipelineRunError = {
 
 export type PipelineSpec = Record<string, unknown>;
 
+export type TaskStateHistory = {
+  update_time: string;
+  state: string;
+};
+
+export type ChildTask = {
+  pod_name: string;
+};
+
+export type TaskDetail = {
+  run_id: string;
+  task_id: string;
+  display_name: string;
+  create_time?: string;
+  start_time?: string;
+  end_time?: string;
+  state?: string;
+  state_history?: TaskStateHistory[];
+  child_tasks?: ChildTask[];
+};
+
+export type RunDetails = {
+  task_details?: TaskDetail[];
+};
+
 export type PipelineRun = {
   run_id: string;
   display_name: string;
@@ -79,6 +104,7 @@ export type PipelineRun = {
   scheduled_at?: string;
   finished_at?: string;
   error?: PipelineRunError;
+  run_details?: RunDetails;
 };
 
 export type LlamaStackModelType = 'llm' | 'embedding';
