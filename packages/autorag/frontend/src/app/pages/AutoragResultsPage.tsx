@@ -145,8 +145,8 @@ function AutoragResultsPage(): React.JSX.Element {
   );
 
   // Playground feature gate: check if gen-ai remote loaded and LlamaStack is reachable
-  const secretName =
-    String(pipelineRun?.runtime_config?.parameters?.llama_stack_secret_name ?? '');
+  const rawSecretName = pipelineRun?.runtime_config?.parameters?.llama_stack_secret_name;
+  const secretName = typeof rawSecretName === 'string' ? rawSecretName : '';
   const [isPlaygroundAvailable, setIsPlaygroundAvailable] = React.useState(false);
 
   React.useEffect(() => {
@@ -155,10 +155,7 @@ function AutoragResultsPage(): React.JSX.Element {
       .catch(() => setIsPlaygroundAvailable(false));
   }, []);
 
-  const { isSuccess: llamaStackAvailable } = useLlamaStackModelsQuery(
-    namespace ?? '',
-    secretName,
-  );
+  const { isSuccess: llamaStackAvailable } = useLlamaStackModelsQuery(namespace ?? '', secretName);
 
   const contextValue = React.useMemo(
     () =>
@@ -207,7 +204,10 @@ function AutoragResultsPage(): React.JSX.Element {
 
   return (
     <>
-      <Drawer isExpanded={drawerContent != null} position={drawerContent?.type === 'playground' ? 'bottom' : 'end'}>
+      <Drawer
+        isExpanded={drawerContent != null}
+        position={drawerContent?.type === 'playground' ? 'bottom' : 'end'}
+      >
         <DrawerContent
           panelContent={
             drawerContent?.type === 'playground' ? (
