@@ -5,10 +5,12 @@ type contextKey string
 // NOTE: If you are adding any HTTP headers, they need to also be added to the EnableCORS middleware
 // to ensure requests are not blocked when using CORS.
 const (
-	LlamaStackClientKey contextKey = "LlamaStackClientKey"
-	NemoClientKey       contextKey = "NemoClientKey"
-	MaaSClientKey       contextKey = "MaaSClientKey"
-	MLflowClientKey     contextKey = "MLflowClientKey"
+	LlamaStackClientKey    contextKey = "LlamaStackClientKey"
+	LlamaStackBaseURLKey   contextKey = "LlamaStackBaseURLKey"
+	LlamaStackAPIKeyCtxKey contextKey = "LlamaStackAPIKeyCtxKey"
+	NemoClientKey          contextKey = "NemoClientKey"
+	MaaSClientKey          contextKey = "MaaSClientKey"
+	MLflowClientKey        contextKey = "MLflowClientKey"
 
 	TraceIdKey     contextKey = "TraceIdKey"
 	TraceLoggerKey contextKey = "TraceLoggerKey"

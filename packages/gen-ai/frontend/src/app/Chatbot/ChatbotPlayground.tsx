@@ -10,6 +10,7 @@ import { Chatbot, ChatbotContent, ChatbotDisplayMode } from '@patternfly/chatbot
 import { useLocation } from 'react-router-dom';
 import { fireMiscTrackingEvent } from '@odh-dashboard/internal/concepts/analyticsTracking/segmentIOUtils';
 import { useUserContext } from '~/app/context/UserContext';
+import { usePlaygroundFeatures } from '~/app/Chatbot/context/PlaygroundFeaturesContext';
 import { ChatbotContext } from '~/app/context/ChatbotContext';
 import { GenAiContext } from '~/app/context/GenAiContext';
 import useFetchBFFConfig from '~/app/hooks/useFetchBFFConfig';
@@ -119,6 +120,16 @@ const ChatbotPlayground: React.FC<ChatbotPlaygroundProps> = ({
   const { namespace } = React.useContext(GenAiContext);
   const { models, modelsLoaded, aiModels, maasModels, lastInput, setLastInput } =
     React.useContext(ChatbotContext);
+  const features = usePlaygroundFeatures();
+
+  // Determine if the settings drawer should be available at all.
+  // When all settings-related features are hidden, there's nothing to show.
+  const hasAnySettingsFeature =
+    features.showMcpServerConfig ||
+    features.showRagToggle ||
+    features.showSystemInstructions ||
+    features.showGuardrailConfig ||
+    features.showModelPicker;
 
   const { data: bffConfig } = useFetchBFFConfig();
   const isDarkMode = useDarkMode();
@@ -415,62 +426,70 @@ const ChatbotPlayground: React.FC<ChatbotPlaygroundProps> = ({
   return (
     <>
       {/* Modals */}
-      <ChatbotSourceSettingsModal
-        isOpen={sourceManagement.isSourceSettingsOpen}
-        onToggle={sourceManagement.handleModalClose}
-        onSubmitSettings={sourceManagement.handleSourceSettingsSubmit}
-        pendingFiles={sourceManagement.pendingFiles}
-        isUploading={sourceManagement.isUploading}
-        uploadProgress={sourceManagement.uploadProgress}
-      />
-      <ViewCodeModal
-        isOpen={isViewCodeModalOpen}
-        onToggle={() => setIsViewCodeModalOpen(!isViewCodeModalOpen)}
-        input={lastInput}
-        files={fileManagement.files}
-        mcpServers={mcpServers}
-        mcpServerTokens={mcpServerTokens}
-        namespace={namespace?.name}
-      />
-      <ChatModal
-        isOpen={isNewChatModalOpen}
-        onClose={() => setIsNewChatModalOpen(false)}
-        onConfirm={() => {
-          messageHooksRef.current.forEach((hook) => hook.clearConversation());
-          if (isCompareMode) {
-            fireMiscTrackingEvent('Playground Compare Chat Cleared', { success: true });
-          }
-          setIsNewChatModalOpen(false);
-        }}
-      />
+      {features.showRagToggle && (
+        <ChatbotSourceSettingsModal
+          isOpen={sourceManagement.isSourceSettingsOpen}
+          onToggle={sourceManagement.handleModalClose}
+          onSubmitSettings={sourceManagement.handleSourceSettingsSubmit}
+          pendingFiles={sourceManagement.pendingFiles}
+          isUploading={sourceManagement.isUploading}
+          uploadProgress={sourceManagement.uploadProgress}
+        />
+      )}
+      {features.showViewCodeModal && (
+        <ViewCodeModal
+          isOpen={isViewCodeModalOpen}
+          onToggle={() => setIsViewCodeModalOpen(!isViewCodeModalOpen)}
+          input={lastInput}
+          files={fileManagement.files}
+          mcpServers={mcpServers}
+          mcpServerTokens={mcpServerTokens}
+          namespace={namespace?.name}
+        />
+      )}
+      {features.showNewChatModal && (
+        <ChatModal
+          isOpen={isNewChatModalOpen}
+          onClose={() => setIsNewChatModalOpen(false)}
+          onConfirm={() => {
+            messageHooksRef.current.forEach((hook) => hook.clearConversation());
+            if (isCompareMode) {
+              fireMiscTrackingEvent('Playground Compare Chat Cleared', { success: true });
+            }
+            setIsNewChatModalOpen(false);
+          }}
+        />
+      )}
 
       {/* Main layout */}
-      <Drawer isExpanded={isDrawerExpanded} isInline position="left">
+      <Drawer isExpanded={hasAnySettingsFeature && isDrawerExpanded} isInline position="left">
         <Divider />
         <DrawerContent
           panelContent={
-            <ChatbotSettingsPanel
-              configId={activePaneConfigId}
-              alerts={alerts}
-              sourceManagement={sourceManagement}
-              fileManagement={fileManagement}
-              initialServerStatuses={mcpServerStatusesFromRoute}
-              mcpServers={mcpServers}
-              mcpServersLoaded={mcpServersLoaded}
-              mcpServersLoadError={mcpServersLoadError}
-              mcpServerTokens={mcpServerTokens}
-              onMcpServerTokensChange={setMcpServerTokens}
-              checkMcpServerStatus={checkMcpServerStatus}
-              onCloseClick={() => setIsDrawerExpanded(false)}
-              onActiveConfigChange={setActivePaneConfigId}
-              defaultActiveTabKey={openSettingsToTab === 'mcp' ? 3 : undefined}
-            />
+            hasAnySettingsFeature ? (
+              <ChatbotSettingsPanel
+                configId={activePaneConfigId}
+                alerts={alerts}
+                sourceManagement={sourceManagement}
+                fileManagement={fileManagement}
+                initialServerStatuses={mcpServerStatusesFromRoute}
+                mcpServers={mcpServers}
+                mcpServersLoaded={mcpServersLoaded}
+                mcpServersLoadError={mcpServersLoadError}
+                mcpServerTokens={mcpServerTokens}
+                onMcpServerTokensChange={setMcpServerTokens}
+                checkMcpServerStatus={checkMcpServerStatus}
+                onCloseClick={() => setIsDrawerExpanded(false)}
+                onActiveConfigChange={setActivePaneConfigId}
+                defaultActiveTabKey={openSettingsToTab === 'mcp' ? 3 : undefined}
+              />
+            ) : undefined
           }
         >
           <DrawerContentBody style={{ padding: 0, height: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              {/* Single mode header */}
-              {!isCompareMode && (
+              {/* Single mode header — only shown when model picker is enabled */}
+              {!isCompareMode && features.showModelPicker && (
                 <ChatbotPaneHeader
                   selectedModel={primarySelectedModel || ''}
                   onModelChange={setSelectedModel}
@@ -527,7 +546,7 @@ const ChatbotPlayground: React.FC<ChatbotPlaygroundProps> = ({
                   !primarySelectedModel ||
                   Array.from(disabledStates.values()).some(Boolean)
                 }
-                showAttachButton={!isCompareMode}
+                showAttachButton={!isCompareMode && features.showRagToggle}
                 onAttach={handleAttach}
                 onShowErrorAlert={alertManagement.onShowErrorAlert}
                 isDarkMode={isDarkMode}
@@ -537,7 +556,7 @@ const ChatbotPlayground: React.FC<ChatbotPlaygroundProps> = ({
         </DrawerContent>
       </Drawer>
 
-      {pendingCloseConfigId && (
+      {features.showCompareMode && pendingCloseConfigId && (
         <CloseChatCompareModal
           chatLabel={getConfigDisplayLabel(configIds.indexOf(pendingCloseConfigId))}
           onConfirm={() => {

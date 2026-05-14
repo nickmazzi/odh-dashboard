@@ -63,6 +63,9 @@ const (
 	MLflowPromptVersionsPath = ApiPathPrefix + "/mlflow/prompts/:name/versions"
 	MLflowPromptVersionPath  = ApiPathPrefix + "/mlflow/prompts/:name/versions/:version"
 
+	// Passthrough endpoint for external LlamaStack instances (autorag embedded playground)
+	ResponsesPassthroughPath = ApiPathPrefix + "/lsd/responses/passthrough"
+
 	GuardrailsStatusPath = ApiPathPrefix + "/guardrails/status"
 
 	// NemoGuardrails endpoints

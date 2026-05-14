@@ -2,7 +2,9 @@ import * as React from 'react';
 import { MessageBox, ChatbotWelcomePrompt } from '@patternfly/chatbot';
 import { MCPServerFromAPI, TokenInfo } from '~/app/types';
 import { ServerStatusInfo } from '~/app/hooks/useMCPServerStatuses';
+import { useEmbeddedMessagesConfig } from './context/EmbeddedMessagesContext';
 import useChatbotMessages, { UseChatbotMessagesReturn } from './hooks/useChatbotMessages';
+import useEmbeddedChatbotMessages from './hooks/useEmbeddedChatbotMessages';
 import {
   useChatbotConfigStore,
   selectSystemInstruction,
@@ -20,8 +22,22 @@ import {
   selectSelectedVectorStoreId,
   selectActivePrompt,
 } from './store';
+import type { ResponsesTemplate } from '@odh-dashboard/plugin-core/types';
 import { ChatbotMessages } from './ChatbotMessagesList';
 import { sampleWelcomePrompts, PLACEHOLDER_BOT_CONTENT } from './const';
+
+/* eslint-disable camelcase */
+const EMPTY_TEMPLATE: ResponsesTemplate = {
+  model: '',
+  stream: true,
+  store: false,
+  input: [],
+  instructions: '',
+  tools: [],
+  tool_choice: { type: '' },
+  include: [],
+  metadata: { autorag_run_id: '', rag_pattern_name: '' },
+};
 
 interface ChatbotConfigInstanceProps {
   configId: string;
@@ -111,7 +127,9 @@ export const ChatbotConfigInstance: React.FC<ChatbotConfigInstanceProps> = ({
     [configId],
   );
 
-  const messagesHook = useChatbotMessages({
+  const embeddedConfig = useEmbeddedMessagesConfig();
+
+  const standardMessagesHook = useChatbotMessages({
     configId,
     modelId: selectedModel,
     systemInstruction,
@@ -134,6 +152,16 @@ export const ChatbotConfigInstance: React.FC<ChatbotConfigInstanceProps> = ({
     promptVersion: activePrompt?.version ?? 0,
     promptName: activePrompt?.name ?? '',
   });
+
+  const embeddedMessagesHook = useEmbeddedChatbotMessages({
+    bffBasePath: embeddedConfig?.bffBasePath ?? '',
+    namespace: embeddedConfig?.namespace ?? '',
+    secretName: embeddedConfig?.secretName ?? '',
+    responsesTemplate: embeddedConfig?.responsesTemplate ?? EMPTY_TEMPLATE,
+    username,
+  });
+
+  const messagesHook = embeddedConfig ? embeddedMessagesHook : standardMessagesHook;
 
   // Expose the messages hook to parent and update when it changes
   React.useEffect(() => {

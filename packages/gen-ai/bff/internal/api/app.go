@@ -374,6 +374,9 @@ func (app *App) Routes() http.Handler {
 	// Responses (LlamaStack) — NeMo client is attached for guardrails moderation
 	apiRouter.POST(constants.ResponsesPath, app.AttachNamespace(app.RequireAccessToService(app.AttachMaaSClient(app.AttachNemoClient(app.AttachLlamaStackClient(app.LlamaStackCreateResponseHandler))))))
 
+	// Responses Passthrough (external LlamaStack via K8s secret) — forwards pre-built request body as-is
+	apiRouter.POST(constants.ResponsesPassthroughPath, app.AttachNamespace(app.RequireAccessToService(app.AttachLlamaStackClientFromSecret(app.LlamaStackPassthroughResponseHandler))))
+
 	// Vector Stores (LlamaStack)
 	apiRouter.GET(constants.VectorStoresListPath, app.AttachNamespace(app.RequireAccessToService(app.AttachLlamaStackClient(app.LlamaStackListVectorStoresHandler))))
 	apiRouter.POST(constants.VectorStoresListPath, app.AttachNamespace(app.RequireAccessToService(app.AttachLlamaStackClient(app.LlamaStackCreateVectorStoreHandler))))

@@ -1,3 +1,5 @@
+import type { ResponsesTemplate } from '@odh-dashboard/plugin-core/types';
+
 export type AutoragPatternScoreMetric = {
   mean: number;
   ci_low: number | null;
@@ -40,6 +42,7 @@ export type AutoragPatternSettings = {
     user_message_text: string;
     system_message_text: string;
   };
+  responses_template?: ResponsesTemplate;
 };
 
 export type AutoragPattern = {

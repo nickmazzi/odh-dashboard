@@ -5,16 +5,26 @@ import {
   Drawer,
   DrawerContent,
   DrawerContentBody,
+  DrawerPanelContent,
+  DrawerHead,
+  DrawerActions,
+  DrawerCloseButton,
+  DrawerPanelBody,
   Skeleton,
+  Spinner,
   Split,
   SplitItem,
+  Title,
   Truncate,
 } from '@patternfly/react-core';
 import { CogIcon, OpenDrawerRightIcon, RedoIcon, StopCircleIcon } from '@patternfly/react-icons';
 import { ApplicationsPage } from 'mod-arch-shared';
+import { loadRemote } from '@module-federation/runtime';
 import React from 'react';
 import { Link, useParams } from 'react-router';
+import type { ResponsesTemplate } from '@odh-dashboard/plugin-core/types';
 import AutoragHeader from '~/app/components/common/AutoragHeader/AutoragHeader';
+import { EmbeddableChatbotPlayground } from '~/app/components/EmbeddablePlaygroundLoader';
 import InvalidPipelineRun from '~/app/components/empty-states/InvalidPipelineRun';
 import InvalidProject from '~/app/components/empty-states/InvalidProject';
 import AutoragResults from '~/app/components/run-results/AutoragResults';
@@ -24,17 +34,27 @@ import { AutoragResultsContext, getAutoragContext } from '~/app/context/AutoragR
 import { useNamespaceSelectorWithPersistence } from '~/app/hooks/useNamespaceSelectorWithPersistence';
 import { useAutoragRunActions } from '~/app/hooks/useAutoragRunActions';
 import { useNotification } from '~/app/hooks/useNotification';
-import { usePipelineRunQuery } from '~/app/hooks/queries';
+import { usePipelineRunQuery, useLlamaStackModelsQuery } from '~/app/hooks/queries';
 import { useAutoragResults } from '~/app/hooks/useAutoragResults';
 import { autoragExperimentsPathname, autoragReconfigurePathname } from '~/app/utilities/routes';
 import { isRunTerminatable, isRunRetryable, parseErrorStatus } from '~/app/utilities/utils';
+
+type DrawerState =
+  | { type: 'run-details' }
+  | {
+      type: 'playground';
+      secretName: string;
+      responsesTemplate: ResponsesTemplate;
+      patternName: string;
+    }
+  | null;
 
 function AutoragResultsPage(): React.JSX.Element {
   const { namespace, runId } = useParams();
   const { namespaces, namespacesLoaded, namespacesLoadError } =
     useNamespaceSelectorWithPersistence();
-  const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
-  const handleDrawerClose = React.useCallback(() => setIsDrawerOpen(false), []);
+  const [drawerContent, setDrawerContent] = React.useState<DrawerState>(null);
+  const handleDrawerClose = React.useCallback(() => setDrawerContent(null), []);
   const [isStopModalOpen, setIsStopModalOpen] = React.useState(false);
   const { handleRetry, handleConfirmStop, isRetrying, isTerminating } = useAutoragRunActions(
     namespace ?? '',
@@ -124,6 +144,22 @@ function AutoragResultsPage(): React.JSX.Element {
     [namespace, runId],
   );
 
+  // Playground feature gate: check if gen-ai remote loaded and LlamaStack is reachable
+  const secretName =
+    String(pipelineRun?.runtime_config?.parameters?.llama_stack_secret_name ?? '');
+  const [isPlaygroundAvailable, setIsPlaygroundAvailable] = React.useState(false);
+
+  React.useEffect(() => {
+    loadRemote('genAi/EmbeddableChatbotPlayground')
+      .then((mod) => setIsPlaygroundAvailable(mod != null))
+      .catch(() => setIsPlaygroundAvailable(false));
+  }, []);
+
+  const { isSuccess: llamaStackAvailable } = useLlamaStackModelsQuery(
+    namespace ?? '',
+    secretName,
+  );
+
   const contextValue = React.useMemo(
     () =>
       getAutoragContext({
@@ -135,6 +171,7 @@ function AutoragResultsPage(): React.JSX.Element {
         patternsLoadError,
         onRetryPatterns: refetchPatterns,
         ragPatternsBasePath,
+        llamaStackInstanceAvailable: isPlaygroundAvailable && llamaStackAvailable,
       }),
     [
       pipelineRun,
@@ -146,19 +183,62 @@ function AutoragResultsPage(): React.JSX.Element {
       patternsLoadError,
       refetchPatterns,
       ragPatternsBasePath,
+      isPlaygroundAvailable,
+      llamaStackAvailable,
     ],
+  );
+
+  const handleTryInPlayground = React.useCallback(
+    (patternName: string) => {
+      const pattern = patterns[patternName];
+      const responsesTemplate = pattern.settings.responses_template;
+      if (!responsesTemplate || !secretName) {
+        return;
+      }
+      setDrawerContent({
+        type: 'playground',
+        secretName,
+        responsesTemplate,
+        patternName,
+      });
+    },
+    [patterns, secretName],
   );
 
   return (
     <>
-      <Drawer isExpanded={isDrawerOpen}>
+      <Drawer isExpanded={drawerContent != null} position={drawerContent?.type === 'playground' ? 'bottom' : 'end'}>
         <DrawerContent
           panelContent={
-            <AutoragInputParametersPanel
-              onClose={handleDrawerClose}
-              parameters={contextValue.parameters}
-              isLoading={pipelineRunPending}
-            />
+            drawerContent?.type === 'playground' ? (
+              <DrawerPanelContent defaultSize="50%">
+                <DrawerHead>
+                  <Title headingLevel="h3">
+                    Try &quot;{drawerContent.patternName}&quot; in Playground
+                  </Title>
+                  <DrawerActions>
+                    <DrawerCloseButton onClick={handleDrawerClose} />
+                  </DrawerActions>
+                </DrawerHead>
+                <DrawerPanelBody>
+                  <React.Suspense fallback={<Spinner aria-label="Loading playground" />}>
+                    <EmbeddableChatbotPlayground
+                      namespace={namespace!}
+                      secretName={drawerContent.secretName}
+                      responsesTemplate={drawerContent.responsesTemplate}
+                      patternName={drawerContent.patternName}
+                      bffBasePath="/gen-ai/api/v1"
+                    />
+                  </React.Suspense>
+                </DrawerPanelBody>
+              </DrawerPanelContent>
+            ) : (
+              <AutoragInputParametersPanel
+                onClose={handleDrawerClose}
+                parameters={contextValue.parameters}
+                isLoading={pipelineRunPending}
+              />
+            )
           }
         >
           <DrawerContentBody>
@@ -218,8 +298,12 @@ function AutoragResultsPage(): React.JSX.Element {
                     <Button
                       variant="link"
                       icon={<OpenDrawerRightIcon />}
-                      onClick={() => setIsDrawerOpen((prev) => !prev)}
-                      aria-expanded={isDrawerOpen}
+                      onClick={() =>
+                        setDrawerContent((prev) =>
+                          prev?.type === 'run-details' ? null : { type: 'run-details' },
+                        )
+                      }
+                      aria-expanded={drawerContent?.type === 'run-details'}
                       data-testid="run-details-button"
                     >
                       Run details
@@ -251,7 +335,7 @@ function AutoragResultsPage(): React.JSX.Element {
               loaded={namespacesLoaded && !pipelineRunPending}
             >
               <AutoragResultsContext.Provider value={contextValue}>
-                <AutoragResults />
+                <AutoragResults onTryInPlayground={handleTryInPlayground} />
               </AutoragResultsContext.Provider>
             </ApplicationsPage>
           </DrawerContentBody>

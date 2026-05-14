@@ -41,8 +41,20 @@ jest.mock('mod-arch-core', () => ({
 const mockUsePipelineRunQuery = jest.fn();
 const mockUseAutoragResults = jest.fn();
 
+jest.mock('@module-federation/runtime', () => ({
+  loadRemote: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock('~/app/components/EmbeddablePlaygroundLoader', () => ({
+  EmbeddableChatbotPlayground: () => null,
+}));
+
 jest.mock('~/app/hooks/queries', () => ({
   usePipelineRunQuery: (...args: unknown[]) => mockUsePipelineRunQuery(...args),
+  useLlamaStackModelsQuery: jest.fn().mockReturnValue({
+    isSuccess: false,
+    isError: false,
+  }),
 }));
 
 jest.mock('~/app/hooks/useAutoragResults', () => ({

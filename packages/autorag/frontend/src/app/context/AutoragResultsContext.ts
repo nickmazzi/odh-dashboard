@@ -14,6 +14,7 @@ export type AutoragResultsContextProps = {
   onRetryPatterns?: () => void;
   parameters?: Partial<ConfigureSchema>;
   ragPatternsBasePath?: string;
+  llamaStackInstanceAvailable?: boolean;
 };
 
 export const AutoragResultsContext = React.createContext<AutoragResultsContextProps | undefined>(
@@ -37,6 +38,7 @@ export function getAutoragContext({
   patternsLoadError,
   onRetryPatterns,
   ragPatternsBasePath,
+  llamaStackInstanceAvailable,
 }: {
   pipelineRun?: PipelineRun;
   patterns?: Record<string, AutoragPattern>;
@@ -46,6 +48,7 @@ export function getAutoragContext({
   patternsLoadError?: Error;
   onRetryPatterns?: () => void;
   ragPatternsBasePath?: string;
+  llamaStackInstanceAvailable?: boolean;
 }): AutoragResultsContextProps {
   // Validate runtime_config.parameters against ConfigureSchema to ensure type safety
   const configureSchema = createConfigureSchema();
@@ -71,5 +74,6 @@ export function getAutoragContext({
     onRetryPatterns,
     parameters,
     ragPatternsBasePath,
+    llamaStackInstanceAvailable,
   };
 }

@@ -696,6 +696,128 @@ export const initNemoGuardrails =
       throw new Error('Invalid response format');
     });
 
+/**
+ * Performs a streaming POST for passthrough requests, reusing the same SSE parsing
+ * logic as streamCreateResponse but accepting a generic Record body.
+ */
+const streamPassthroughResponse = (
+  url: string,
+  body: Record<string, unknown>,
+  onStreamData: (chunk: string, clearPrevious?: boolean) => void,
+  abortSignal?: AbortSignal,
+): Promise<SimplifiedResponseData> => {
+  // Build a minimal CreateResponseRequest-compatible object for streamCreateResponse.
+  // streamCreateResponse only uses JSON.stringify(request) for the fetch body,
+  // so spreading the full body preserves all passthrough-specific fields.
+  const request: CreateResponseRequest = {
+    input: '',
+    model: '',
+    stream: true,
+    ...body,
+  };
+  return streamCreateResponse(url, request, onStreamData, abortSignal);
+};
+
+/**
+ * Performs a non-streaming POST for passthrough requests.
+ */
+const fetchPassthroughResponse = (
+  url: string,
+  body: Record<string, unknown>,
+  abortSignal?: AbortSignal,
+): Promise<SimplifiedResponseData> =>
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: abortSignal,
+  }).then(async (response) => {
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorBody = await response.text();
+        const errorData = JSON.parse(errorBody);
+        errorMessage = errorData?.error?.message || errorMessage;
+      } catch {
+        // ignore
+      }
+      throw new Error(errorMessage);
+    }
+    const data: { data?: BackendResponseData } = await response.json();
+    if (data.data) {
+      return transformBackendResponse(data.data);
+    }
+    throw new Error('Invalid response format');
+  });
+
+/**
+ * Creates a passthrough response using a pre-configured ResponsesTemplate from AutoRAG.
+ * Substitutes the placeholder text with the user's actual message, forces store=false
+ * (embedded chats are ephemeral and should not persist on the LlamaStack server),
+ * and POSTs to the passthrough endpoint.
+ *
+ * @param bffBasePath - Gen-ai BFF base URL path (e.g., '/gen-ai/api/v1')
+ * @param namespace - Kubernetes namespace
+ * @param secretName - K8s secret name with llama_stack_client credentials
+ * @param template - The ResponsesTemplate body from AutoRAG
+ * @param userMessage - The user's chat message to substitute into the template
+ * @param chatHistory - Previous messages for multi-turn conversation context
+ * @param onStreamData - Optional streaming callback
+ * @param abortSignal - Optional abort signal
+ */
+export const createPassthroughResponse = (
+  bffBasePath: string,
+  namespace: string,
+  secretName: string,
+  template: Record<string, unknown>,
+  userMessage: string,
+  chatHistory: Array<{ role: string; content: string }> = [],
+  onStreamData?: (chunk: string, clearPrevious?: boolean) => void,
+  abortSignal?: AbortSignal,
+): Promise<SimplifiedResponseData> => {
+  // Deep clone the template to avoid mutating the original
+  const body: Record<string, unknown> = JSON.parse(JSON.stringify(template));
+
+  // Substitute <user_query_placeholder> in the input
+  const { input } = body;
+  if (Array.isArray(input)) {
+    for (const inputItem of input) {
+      if (isRecord(inputItem) && Array.isArray(inputItem.content)) {
+        for (const contentItem of inputItem.content) {
+          if (isRecord(contentItem) && typeof contentItem.text === 'string') {
+            contentItem.text = contentItem.text.replace('<user_query_placeholder>', userMessage);
+          }
+        }
+      }
+    }
+
+    // Append chat history for multi-turn conversations
+    if (chatHistory.length > 0) {
+      const historyMessages = chatHistory.map((msg) => ({
+        type: 'message',
+        role: msg.role,
+        content: [{ type: 'input_text', text: msg.content }],
+      }));
+      // Insert history before the last (current) user message
+      input.splice(input.length - 1, 0, ...historyMessages);
+    }
+  }
+
+  // Force store=false — embedded chats are ephemeral
+  body.store = false;
+
+  const url = buildApiUrl(bffBasePath, '/lsd/responses/passthrough', {
+    namespace,
+    secretName,
+  });
+
+  if (onStreamData) {
+    return streamPassthroughResponse(url, body, onStreamData, abortSignal);
+  }
+
+  return fetchPassthroughResponse(url, body, abortSignal);
+};
+
 /** MLflow Prompt Registry Endpoints */
 export const listMLflowPrompts = modArchRestGET<MLflowPromptsResponse>('/mlflow/prompts');
 export const registerMLflowPrompt = modArchRestCREATE<
