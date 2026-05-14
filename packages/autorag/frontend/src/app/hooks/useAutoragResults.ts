@@ -302,6 +302,37 @@ export function useAutoragResults(
       }
 
       // S3 data already matches AutoragPattern schema
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (patternData as any).settings.responses_template = {
+        model: 'vllm-llm/meta-llama/Llama-3.3-70B-Instruct',
+        stream: false,
+        store: true,
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: '<user_query_placeholder>' }],
+          },
+        ],
+        metadata: { autorag_run_id: 'debug-stub', rag_pattern_name: patternName },
+        instructions:
+          'You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.',
+        tools: [
+          {
+            type: 'file_search',
+            vector_store_ids: ['vs_65ef76a7-f119-42eb-b552-479ed19dd323'],
+            max_num_results: 10,
+            ranking_options: {
+              search_mode: 'default',
+              ranker_strategy: 'default',
+              ranker_k: 10,
+              ranker_alpha: 0.5,
+            },
+          },
+        ],
+        tool_choice: { type: 'file_search' },
+        include: ['file_search_call.results'],
+      };
       results[patternName] = patternData;
     });
 
