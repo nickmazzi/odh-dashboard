@@ -203,7 +203,7 @@ function AutoragResultsPage(): React.JSX.Element {
   );
 
   return (
-    <>
+    <AutoragResultsContext.Provider value={contextValue}>
       <Drawer
         isExpanded={drawerContent != null}
         position={drawerContent?.type === 'playground' ? 'bottom' : 'end'}
@@ -334,9 +334,7 @@ function AutoragResultsPage(): React.JSX.Element {
               }
               loaded={namespacesLoaded && !pipelineRunPending}
             >
-              <AutoragResultsContext.Provider value={contextValue}>
-                <AutoragResults onTryInPlayground={handleTryInPlayground} />
-              </AutoragResultsContext.Provider>
+              <AutoragResults onTryInPlayground={handleTryInPlayground} />
             </ApplicationsPage>
           </DrawerContentBody>
         </DrawerContent>
@@ -348,7 +346,7 @@ function AutoragResultsPage(): React.JSX.Element {
         isTerminating={isTerminating}
         runName={pipelineRun?.display_name}
       />
-    </>
+    </AutoragResultsContext.Provider>
   );
 }
 
