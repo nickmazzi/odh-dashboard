@@ -5,6 +5,7 @@ import botAvatar from '~/app/bgimages/bot_avatar.svg';
 import { ChatbotMessageProps } from '~/app/Chatbot/hooks/useChatbotMessages';
 import { ChatbotMessagesMetrics } from '~/app/Chatbot/ChatbotMessagesMetrics';
 import ChatbotFileSearchResults from '~/app/Chatbot/ChatbotFileSearchResults';
+import './ChatbotMessagesList.scss';
 
 type ChatbotMessagesListProps = {
   messageList: ChatbotMessageProps[];
@@ -17,6 +18,12 @@ type ChatbotMessagesListProps = {
   placeholderContent?: string;
 };
 
+const CITATION_REGEX = /\{\{citation:(\d+)\}\}/g;
+const CITE_HREF_PREFIX = '#cite-';
+
+const prepareCitationContent = (content: string): string =>
+  content.replace(CITATION_REGEX, (_, num) => `[\\[${num}\\]](${CITE_HREF_PREFIX}${num})`);
+
 const ChatbotMessagesList: React.FC<ChatbotMessagesListProps> = ({
   messageList,
   scrollRef,
@@ -25,9 +32,12 @@ const ChatbotMessagesList: React.FC<ChatbotMessagesListProps> = ({
   modelDisplayName = 'Bot',
   placeholderContent,
 }) => {
+  const [expandedCitation, setExpandedCitation] = React.useState<{
+    messageId: string;
+    citationNumber: number;
+  } | null>(null);
+
   // Show loading dots only when no message in the list is already showing its own loading state.
-  // The embedded flow creates a bot message with isLoading=true in the array, so the
-  // standalone loading dots should not also render.
   const hasLoadingMessage = messageList.some((msg) => msg.isLoading);
   const showLoadingDots = isLoading && !isStreamingWithoutContent && !hasLoadingMessage;
 
@@ -46,7 +56,13 @@ const ChatbotMessagesList: React.FC<ChatbotMessagesListProps> = ({
       )}
       {messageList.map((message, index) => {
         // Destructure extended props to avoid passing them to PatternFly Message component
-        const { metrics, fileSearchData, ...messageProps } = message;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { metrics, fileSearchData, annotations, citationMap, ...messageProps } = message;
+        const hasCitations =
+          message.role === 'bot' &&
+          citationMap &&
+          citationMap.size > 0 &&
+          typeof message.content === 'string';
 
         // Build extraContent with file search results and metrics (for bot messages)
         const hasEndContent = message.role === 'bot' && (fileSearchData || metrics);
@@ -56,7 +72,16 @@ const ChatbotMessagesList: React.FC<ChatbotMessagesListProps> = ({
                 <Stack hasGutter>
                   {fileSearchData && (
                     <StackItem>
-                      <ChatbotFileSearchResults fileSearchData={fileSearchData} />
+                      <ChatbotFileSearchResults
+                        fileSearchData={fileSearchData}
+                        citationMap={citationMap}
+                        expandedCitation={
+                          expandedCitation !== null && expandedCitation.messageId === message.id
+                            ? expandedCitation.citationNumber
+                            : undefined
+                        }
+                        onCitationExpanded={() => setExpandedCitation(null)}
+                      />
                     </StackItem>
                   )}
                   {metrics && (
@@ -69,10 +94,53 @@ const ChatbotMessagesList: React.FC<ChatbotMessagesListProps> = ({
             }
           : undefined;
 
+        // For messages with citations, replace markers with markdown links and
+        // intercept them via reactMarkdownProps to render as clickable buttons
+        const citationProps = hasCitations
+          ? {
+              content: prepareCitationContent(String(message.content)),
+              reactMarkdownProps: {
+                components: {
+                  a: ({
+                    href,
+                    children: linkChildren,
+                    ...rest
+                  }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+                    if (href?.startsWith(CITE_HREF_PREFIX)) {
+                      const num = parseInt(href.slice(CITE_HREF_PREFIX.length), 10);
+                      return (
+                        <button
+                          type="button"
+                          className="chatbot-citation-inline"
+                          onClick={() =>
+                            setExpandedCitation({
+                              messageId: message.id ?? '',
+                              citationNumber: num,
+                            })
+                          }
+                          aria-label={`Citation ${String(num)}`}
+                          data-testid={`citation-inline-${String(num)}`}
+                        >
+                          {linkChildren}
+                        </button>
+                      );
+                    }
+                    return (
+                      <a href={href} {...rest}>
+                        {linkChildren}
+                      </a>
+                    );
+                  },
+                },
+              },
+            }
+          : undefined;
+
         return (
           <React.Fragment key={message.id}>
             <Message
               {...messageProps}
+              {...citationProps}
               extraContent={extraContent}
               data-testid={`chatbot-message-${message.role}`}
             />

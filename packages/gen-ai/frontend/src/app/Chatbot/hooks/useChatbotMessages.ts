@@ -8,6 +8,7 @@ import { getId, getLlamaModelDisplayName, splitLlamaModelId } from '~/app/utilit
 import {
   ChatMessageRole,
   CreateResponseRequest,
+  FileCitationAnnotation,
   FileSearchCallData,
   GuardrailInlineConfig,
   MCPToolCallData,
@@ -45,6 +46,8 @@ export type GuardrailsConfig = {
 export type ChatbotMessageProps = MessageProps & {
   metrics?: ResponseMetrics;
   fileSearchData?: FileSearchCallData;
+  annotations?: FileCitationAnnotation[];
+  citationMap?: Map<string, number>;
 };
 
 export interface UseChatbotMessagesReturn {
@@ -447,20 +450,10 @@ const useChatbotMessages = ({
           clearTimeout(timeoutRef.current);
         }
 
-        // Build sources prop for PatternFly SourcesCard if sources exist
-        // Add onClick to prevent link navigation (display only)
-        const sourcesProps = streamingResponse.sources?.length
-          ? {
-              sources: {
-                sources: streamingResponse.sources.map((source) => ({
-                  ...source,
-                  onClick: (e: React.MouseEvent) => e.preventDefault(),
-                })),
-              },
-            }
-          : {};
-
         // Use the processed content from the response which has file citation tokens replaced
+        const toolResponse = streamingResponse.toolCallData
+          ? createToolResponse(streamingResponse.toolCallData)
+          : undefined;
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
             msg.id === botMessageId
@@ -468,39 +461,23 @@ const useChatbotMessages = ({
                   ...msg,
                   content: streamingResponse.content,
                   isLoading: false,
-                  ...sourcesProps,
+                  ...(streamingResponse.annotations && {
+                    annotations: streamingResponse.annotations,
+                  }),
+                  ...(streamingResponse.citationMap && {
+                    citationMap: streamingResponse.citationMap,
+                  }),
+                  ...(toolResponse && { toolResponse }),
+                  ...(streamingResponse.metrics && { metrics: streamingResponse.metrics }),
+                  ...(streamingResponse.fileSearchData && {
+                    fileSearchData: streamingResponse.fileSearchData,
+                  }),
                 }
               : msg,
           ),
         );
-
-        // Add tool response, metrics, and file search data if available
-        if (
-          streamingResponse.toolCallData ||
-          streamingResponse.metrics ||
-          streamingResponse.fileSearchData
-        ) {
-          const toolResponse = streamingResponse.toolCallData
-            ? createToolResponse(streamingResponse.toolCallData)
-            : undefined;
-          setMessages((prevMessages) =>
-            prevMessages.map((msg) =>
-              msg.id === botMessageId
-                ? {
-                    ...msg,
-                    ...(toolResponse && { toolResponse }),
-                    ...(streamingResponse.metrics && { metrics: streamingResponse.metrics }),
-                    ...(streamingResponse.fileSearchData && {
-                      fileSearchData: streamingResponse.fileSearchData,
-                    }),
-                  }
-                : msg,
-            ),
-          );
-          // Update last response metrics for pane header display
-          if (streamingResponse.metrics) {
-            setLastResponseMetrics(streamingResponse.metrics);
-          }
+        if (streamingResponse.metrics) {
+          setLastResponseMetrics(streamingResponse.metrics);
         }
       } else {
         // Handle non-streaming response
@@ -512,19 +489,6 @@ const useChatbotMessages = ({
           ? createToolResponse(response.toolCallData)
           : undefined;
 
-        // Build sources prop for PatternFly SourcesCard if sources exist
-        // Add onClick to prevent link navigation (display only)
-        const sourcesProps = response.sources?.length
-          ? {
-              sources: {
-                sources: response.sources.map((source) => ({
-                  ...source,
-                  onClick: (e: React.MouseEvent) => e.preventDefault(),
-                })),
-              },
-            }
-          : {};
-
         const botMessage: ChatbotMessageProps = {
           id: getId(),
           role: 'bot',
@@ -533,7 +497,8 @@ const useChatbotMessages = ({
           avatar: botAvatar,
           timestamp: new Date().toLocaleString(),
           ...(toolResponse && { toolResponse }),
-          ...sourcesProps,
+          ...(response.annotations && { annotations: response.annotations }),
+          ...(response.citationMap && { citationMap: response.citationMap }),
           ...(response.metrics && { metrics: response.metrics }),
           ...(response.fileSearchData && { fileSearchData: response.fileSearchData }),
         };
