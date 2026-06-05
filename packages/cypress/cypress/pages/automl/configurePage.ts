@@ -39,11 +39,11 @@ class AutomlConfigurePage {
   }
 
   findSelectFileToggle() {
-    return cy.findByTestId('training-data-source-select-toggle');
+    return cy.get('#training-data-input-select');
   }
 
   findUploadFileToggle() {
-    return cy.findByTestId('training-data-source-upload-toggle').find('button');
+    return cy.get('#training-data-input-upload');
   }
 
   findUploadFileInput() {
@@ -183,7 +183,7 @@ class AutomlConfigurePage {
     // this.findUploadedFileCell().should('be.visible');
 
     cy.step('Verify uploaded file is browsable in file explorer and select it');
-    this.findSelectFileToggle().find('button').click();
+    this.findSelectFileToggle().click();
     this.findBrowseBucketButton().click();
     this.findFileExplorerTable().should('be.visible');
     this.findFileExplorerSearch().type(uploadFileName);
