@@ -47,7 +47,7 @@ class AutomlConfigurePage {
   }
 
   findUploadFileInput() {
-    return cy.get('input[type="file"][hidden]');
+    return cy.get('input[type="file"][accept=".csv"]');
   }
 
   findUploadSpinner() {
