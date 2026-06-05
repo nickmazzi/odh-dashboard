@@ -43,7 +43,7 @@ class AutomlConfigurePage {
   }
 
   findUploadFileToggle() {
-    return cy.findByTestId('training-data-source-upload-toggle');
+    return cy.findByTestId('training-data-source-upload-toggle').find('button');
   }
 
   findUploadFileInput() {
