@@ -176,3 +176,9 @@ export type Envelope<M, D> = {
   metadata: M;
   data: D;
 };
+
+export type EvaluationFileEntry = {
+  question: string;
+  correct_answers: string[];
+  correct_answer_document_ids: string[];
+};
