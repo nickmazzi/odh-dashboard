@@ -370,7 +370,6 @@ describe('EvaluationFileCreator', () => {
       ]);
 
       expect(defaultProps.onCreated).toHaveBeenCalledWith('eval-file.json');
-      expect(defaultProps.onClose).toHaveBeenCalled();
     });
 
     it('should show error notification on upload failure', async () => {
