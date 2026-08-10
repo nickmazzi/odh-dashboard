@@ -117,7 +117,7 @@ jest.mock('~/app/hooks/queries', () => ({
 
 // Mock SecretSelector — simplified stand-in for TypeaheadSelect secret picks (see component tests for SecretSelector).
 // Renders the current selection with the same label the real selector shows (`displayName || name` in options).
-jest.mock('~/app/components/common/SecretSelector', () => {
+jest.mock('@odh-dashboard/internal/concepts/secrets/SecretSelector/SecretSelector', () => {
   const MOCK_UUID_TO_DISPLAY_LABEL: Record<string, string> = {
     'secret-1': 'Test Secret 1',
     'secret-2': 'Test Secret 2',

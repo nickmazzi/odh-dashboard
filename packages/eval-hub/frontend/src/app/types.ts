@@ -13,16 +13,6 @@ export type K8sCondition = {
   lastHeartbeatTime?: string;
 };
 
-export type ListConfigSecretsResponse = {
-  secrets: { name: string; keys: string[] }[];
-  configMaps: { name: string; keys: string[] }[];
-};
-
-export type ConfigSecretItem = {
-  name: string;
-  keys: string[];
-};
-
 export type NamespaceKind = {
   name: string;
   displayName?: string;

@@ -12,10 +12,15 @@ import {
 import React, { useEffect, useRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useParams } from 'react-router';
-import SecretSelector, { SecretSelection } from '~/app/components/common/SecretSelector';
+import SecretSelector from '@odh-dashboard/internal/concepts/secrets/SecretSelector/SecretSelector';
+import type {
+  SecretSelection,
+  SecretListItem,
+} from '@odh-dashboard/internal/concepts/secrets/SecretSelector/types';
+import type { K8sAPIOptions } from '@odh-dashboard/k8s-core';
+import { getSecrets } from '~/app/api/k8s';
 import OgxConnectionModal from '~/app/components/common/OgxConnectionModal';
 import { ConfigureSchema } from '~/app/schemas/configure.schema';
-import { SecretListItem } from '~/app/types';
 
 type AutoragCreateProps = {
   initialOgxSecret?: SecretSelection;
@@ -28,6 +33,11 @@ function AutoragCreate({ initialOgxSecret }: AutoragCreateProps): React.JSX.Elem
   );
   const [isConnectionModalOpen, setIsConnectionModalOpen] = React.useState(false);
   const secretsRefreshRef = useRef<(() => Promise<SecretListItem[] | undefined>) | null>(null);
+
+  const fetchSecrets = React.useCallback(
+    (opts: K8sAPIOptions) => getSecrets('')(namespace ?? '', 'ogx')(opts),
+    [namespace],
+  );
 
   const form = useFormContext<ConfigureSchema>();
   const { setValue } = form;
@@ -102,8 +112,7 @@ function AutoragCreate({ initialOgxSecret }: AutoragCreateProps): React.JSX.Elem
                 <SecretSelector
                   dataTestId="ogx-secret-selector"
                   placeholder="Select Open GenAI Stack secret"
-                  type="ogx"
-                  namespace={namespace ?? ''}
+                  fetchSecrets={fetchSecrets}
                   value={selectedOgxSecret?.uuid}
                   onChange={(secret) => {
                     setSelectedOgxSecret(secret);

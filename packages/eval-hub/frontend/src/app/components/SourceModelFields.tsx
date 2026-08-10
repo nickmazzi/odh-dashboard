@@ -10,10 +10,13 @@ import {
   TextInput,
   ValidatedOptions,
 } from '@patternfly/react-core';
+import type { APIOptions } from 'mod-arch-core';
 import { useParams } from 'react-router-dom';
+import SecretSelector from '@odh-dashboard/internal/concepts/secrets/SecretSelector/SecretSelector';
+import type { SecretSelection } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/types';
 import LabelHelpPopover from '~/app/components/LabelHelpPopover';
 import ConnectionValidationButton from '~/app/components/ConnectionValidationButton';
-import { verifyConnection } from '~/app/api/k8s';
+import { getSecrets, verifyConnection } from '~/app/api/k8s';
 import { isValidUrl } from '~/app/utils/validationUtils';
 import type { ConnectionValidationState, VerifyConnectionRequest } from '~/app/types';
 
@@ -52,6 +55,20 @@ const SourceModelFields: React.FC<SourceModelFieldsProps> = ({
 
   const [compatWarning, setCompatWarning] = React.useState<string | undefined>(undefined);
   const compatAbortRef = React.useRef<AbortController | null>(null);
+  const [selectedSecretUuid, setSelectedSecretUuid] = React.useState<string | undefined>();
+
+  const fetchSecrets = React.useCallback(
+    (opts: APIOptions) => getSecrets('')(namespace ?? '', 'model')(opts),
+    [namespace],
+  );
+
+  const handleSecretChange = React.useCallback(
+    (selection: SecretSelection | undefined) => {
+      setSelectedSecretUuid(selection?.uuid);
+      onApiKeyChange(selection?.name ?? '');
+    },
+    [onApiKeyChange],
+  );
 
   React.useEffect(() => {
     setCompatWarning(undefined);
@@ -172,17 +189,17 @@ const SourceModelFields: React.FC<SourceModelFieldsProps> = ({
       </StackItem>
       <StackItem>
         <FormGroup
-          label="Authentication secret name"
+          label="Authentication secret"
           fieldId="api-key"
           labelHelp={
             <LabelHelpPopover
-              ariaLabel="More info for authentication secret name"
-              title="Authentication secret name"
+              ariaLabel="More info for authentication secret"
+              title="Authentication secret"
               content={
                 <>
-                  Enter the <strong>name</strong> of the Kubernetes Secret that stores
-                  authentication credentials. The secret should contain an API key (api-key). For
-                  gated Hugging Face models, it should also include a Hugging Face token (hf-token).
+                  Select a Kubernetes Secret that stores authentication credentials. The secret must
+                  contain an API key (api-key). For gated Hugging Face models, it should also
+                  include a Hugging Face token (hf-token).
                   <br />
                   <br />
                   If it hasn&apos;t been created yet, run:
@@ -203,11 +220,12 @@ const SourceModelFields: React.FC<SourceModelFieldsProps> = ({
             />
           }
         >
-          <TextInput
-            id="api-key"
-            data-testid="api-key-input"
-            value={apiKeySecretRef}
-            onChange={(_e, val) => onApiKeyChange(val)}
+          <SecretSelector
+            fetchSecrets={fetchSecrets}
+            value={selectedSecretUuid}
+            onChange={handleSecretChange}
+            placeholder="Select a secret"
+            dataTestId="api-key-secret-selector"
           />
         </FormGroup>
       </StackItem>

@@ -3,16 +3,16 @@ import { ApplicationsPage } from 'mod-arch-shared';
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 import { useParams } from 'react-router';
+import { getMissingRequiredKeys } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/secretValidation';
+import type { SecretSelection } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/types';
 import { getSecrets } from '~/app/api/k8s';
 import AutomlHeader from '~/app/components/common/AutomlHeader/AutomlHeader';
-import type { SecretSelection } from '~/app/components/common/SecretSelector';
 import InvalidPipelineRun from '~/app/components/empty-states/InvalidPipelineRun';
 import InvalidProject from '~/app/components/empty-states/InvalidProject';
 import { usePipelineRunQuery } from '~/app/hooks/queries';
 import { useNotification } from '~/app/hooks/useNotification';
 import { createConfigureSchema, type ConfigureSchema } from '~/app/schemas/configure.schema';
 import { automlExperimentsPathname } from '~/app/utilities/routes';
-import { getMissingRequiredKeys } from '~/app/utilities/secretValidation';
 import {
   REQUIRED_CONNECTION_SECRET_KEYS,
   DEFAULT_EVAL_METRIC_BY_TASK,

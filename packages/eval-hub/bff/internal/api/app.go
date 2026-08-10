@@ -17,6 +17,7 @@ import (
 	ehmocks "github.com/opendatahub-io/eval-hub/bff/internal/integrations/evalhub/ehmocks"
 	k8s "github.com/opendatahub-io/eval-hub/bff/internal/integrations/kubernetes"
 	k8mocks "github.com/opendatahub-io/eval-hub/bff/internal/integrations/kubernetes/k8mocks"
+	autoxk8s "github.com/opendatahub-io/odh-dashboard/packages/autox-core/services/kubernetes"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
@@ -49,6 +50,7 @@ const (
 	CatalogModelSecurityArtifactsPath = ApiPathPrefix + "/catalog/sources/:" + CatalogSourceID + "/security_artifacts/*" + CatalogModelName
 	InferenceServicesPath             = ApiPathPrefix + "/inferenceservices"
 	VerifyConnectionPath              = ApiPathPrefix + "/evaluations/verify-connection"
+	SecretsPath                       = ApiPathPrefix + "/secrets"
 )
 
 var hashPattern = regexp.MustCompile(`[.\-][0-9a-f]{8,}`)
@@ -77,6 +79,7 @@ type App struct {
 	config                  config.EnvConfig
 	logger                  *slog.Logger
 	kubernetesClientFactory k8s.KubernetesClientFactory
+	k8sService              autoxk8s.Service
 	evalHubClientFactory    evalhub.EvalHubClientFactory
 	bffClientFactory        bffclient.BFFClientFactory
 	repositories            *repositories.Repositories
@@ -152,6 +155,28 @@ func NewApp(cfg config.EnvConfig, logger *slog.Logger) (*App, error) {
 		return nil, fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}
 
+	// Create autox-core k8s service for shared secret operations
+	var autoxClient autoxk8s.Client
+	if cfg.MockK8Client {
+		// In mock mode, autox-core service won't be used for secrets (envtest provides the data).
+		// Create a token client that will use the identity from context.
+		autoxClient, err = autoxk8s.NewDefaultTokenClient()
+		if err != nil {
+			logger.Warn("Failed to create autox-core token client in mock mode, secret listing will be unavailable", slog.Any("error", err))
+		}
+	} else if cfg.AuthMethod == config.AuthMethodUser {
+		autoxClient, err = autoxk8s.NewDefaultTokenClient()
+	} else {
+		autoxClient, err = autoxk8s.NewDefaultInternalClient()
+	}
+	if err != nil && !cfg.MockK8Client {
+		return nil, fmt.Errorf("failed to create autox-core Kubernetes client: %w", err)
+	}
+	var k8sService autoxk8s.Service
+	if autoxClient != nil {
+		k8sService = autoxk8s.NewService(autoxk8s.ServiceConfig{Logger: logger}, autoxClient)
+	}
+
 	dashboardNamespace, err := helper.GetCurrentNamespace()
 	if err != nil {
 		logger.Warn("Failed to detect dashboard namespace, using default",
@@ -212,6 +237,7 @@ func NewApp(cfg config.EnvConfig, logger *slog.Logger) (*App, error) {
 		config:                  cfg,
 		logger:                  logger,
 		kubernetesClientFactory: k8sFactory,
+		k8sService:              k8sService,
 		evalHubClientFactory:    ehFactory,
 		bffClientFactory:        bffFactory,
 		repositories:            repositories.NewRepositories(),
@@ -261,6 +287,9 @@ func (app *App) Routes() http.Handler {
 
 	// Connection verification (probes external endpoints, no EvalHub REST client needed)
 	apiRouter.POST(VerifyConnectionPath, app.AttachNamespace(app.RequireAccessToService(app.VerifyConnectionHandler)))
+
+	// Secret listing (uses autox-core k8s service)
+	apiRouter.GET(SecretsPath, app.AttachNamespace(app.RequireAccessToService(app.SecretsHandler)))
 
 	// Inter-BFF: model-catalog security artifacts (only security_artifacts endpoint is allowed by the bffclient allowlist)
 	apiRouter.GET(CatalogModelSecurityArtifactsPath, app.AttachNamespace(app.RequireAccessToService(

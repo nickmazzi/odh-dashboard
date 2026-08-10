@@ -48,14 +48,18 @@ import { CubesIcon, EllipsisVIcon, TimesIcon, UploadIcon } from '@patternfly/rea
 import { useQueryClient } from '@tanstack/react-query';
 import type { FileRejection } from 'react-dropzone';
 import { findKey } from 'es-toolkit';
+import { APIOptions } from 'mod-arch-core';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { Navigate, useParams } from 'react-router';
 import S3FileExplorer from '@odh-dashboard/internal/concepts/fileExplorer/S3FileExplorer/S3FileExplorer';
 import type { ExplorerFile } from '@odh-dashboard/internal/concepts/fileExplorer/types';
+import SecretSelector from '@odh-dashboard/internal/concepts/secrets/SecretSelector/SecretSelector';
+import { getMissingRequiredKeys } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/secretValidation';
+import type { SecretSelection } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/types';
+import { getSecrets } from '~/app/api/k8s';
 import AutomlConnectionModal from '~/app/components/common/AutomlConnectionModal';
 import ConfigureFormGroup from '~/app/components/common/ConfigureFormGroup';
-import SecretSelector, { SecretSelection } from '~/app/components/common/SecretSelector';
 import useReconfigureSafeEffect from '~/app/hooks/useReconfigureSafeEffect';
 import { useS3FileUploadMutation } from '~/app/hooks/mutations';
 import { useS3GetFileSchemaQuery } from '~/app/hooks/queries';
@@ -81,7 +85,6 @@ import {
   isASCIIOnly,
 } from '~/app/utilities/columnUtils';
 import { automlExperimentsPathname } from '~/app/utilities/routes';
-import { getMissingRequiredKeys } from '~/app/utilities/secretValidation';
 import {
   AUTOML_TRAINING_UPLOAD_MAX_BYTES,
   AUTOML_TRAINING_UPLOAD_MAX_FILES,
@@ -111,6 +114,12 @@ function AutomlConfigure({
   initialInputDataSecret,
 }: AutomlConfigureProps): React.JSX.Element {
   const { namespace } = useParams();
+
+  const fetchSecrets = React.useCallback(
+    (opts: APIOptions) => getSecrets('')(namespace ?? '', 'storage')(opts),
+    [namespace],
+  );
+
   const queryClient = useQueryClient();
   const [allConnectionTypes] = useWatchConnectionTypes();
   const automlConnectionTypes = React.useMemo(
@@ -504,8 +513,7 @@ function AutomlConfigure({
                               name="train_data_secret_name"
                               render={({ field: { onChange } }) => (
                                 <SecretSelector
-                                  namespace={String(namespace)}
-                                  type="storage"
+                                  fetchSecrets={fetchSecrets}
                                   additionalRequiredKeys={REQUIRED_CONNECTION_SECRET_KEYS}
                                   isDisabled={formIsSubmitting}
                                   value={selectedSecret?.uuid}

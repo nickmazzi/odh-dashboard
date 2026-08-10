@@ -1,4 +1,4 @@
-import { SecretListItem } from '~/app/types';
+import type { SecretListItem } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/types';
 
 type MockSecretListItemOptions = {
   uuid?: string;

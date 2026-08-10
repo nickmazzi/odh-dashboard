@@ -7,6 +7,7 @@ import {
   restDELETE,
   restGET,
 } from 'mod-arch-core';
+import type { SecretListItem } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/types';
 import { BFF_API_VERSION, URL_PREFIX } from '~/app/utilities/const';
 import {
   Collection,
@@ -290,6 +291,24 @@ export const getCatalogSecurityArtifacts =
       ),
     ).then((response) => {
       if (isModArchResponse<CatalogSecurityArtifactList>(response)) {
+        return response.data;
+      }
+      throw new Error('Invalid response format');
+    });
+  };
+
+export const getSecrets =
+  (hostPath: string) =>
+  (namespace: string, type?: 'model') =>
+  (opts: APIOptions): Promise<SecretListItem[]> => {
+    const queryParams: Record<string, string> = { namespace };
+    if (type) {
+      queryParams.type = type;
+    }
+    return handleRestFailures(
+      restGET(hostPath, `${URL_PREFIX}/api/${BFF_API_VERSION}/secrets`, queryParams, opts),
+    ).then((response) => {
+      if (isModArchResponse<SecretListItem[]>(response)) {
         return response.data;
       }
       throw new Error('Invalid response format');

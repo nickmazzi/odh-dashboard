@@ -16,6 +16,7 @@ import (
 	helper "github.com/opendatahub-io/eval-hub/bff/internal/helpers"
 	"github.com/opendatahub-io/eval-hub/bff/internal/integrations/evalhub"
 	"github.com/opendatahub-io/eval-hub/bff/internal/integrations/kubernetes"
+	autoxk8s "github.com/opendatahub-io/odh-dashboard/packages/autox-core/services/kubernetes"
 	"github.com/rs/cors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -49,6 +50,14 @@ func (app *App) InjectRequestIdentity(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), constants.RequestIdentityKey, identity)
+
+		// Bridge to autox-core identity so autox-core k8s service can read it
+		ctx = autoxk8s.ContextWithIdentity(ctx, &autoxk8s.RequestIdentity{
+			UserID: identity.UserID,
+			Groups: identity.Groups,
+			Token:  identity.Token,
+		})
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

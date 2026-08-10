@@ -77,7 +77,7 @@ jest.mock('@odh-dashboard/internal/concepts/fileExplorer/S3FileExplorer/S3FileEx
 }));
 
 // Mock SecretSelector — maps UUID to label like the real selector
-jest.mock('~/app/components/common/SecretSelector', () => {
+jest.mock('@odh-dashboard/internal/concepts/secrets/SecretSelector/SecretSelector', () => {
   const MOCK_UUID_TO_DISPLAY_LABEL: Record<string, string> = {
     'secret-1': 'Test Secret 1',
     'secret-2': 'Test Secret 2',

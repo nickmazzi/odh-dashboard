@@ -138,14 +138,7 @@ export type OgxFilteredVectorStoreProvidersResponse = OgxVectorStoreProvidersRes
   totalProviderCount: number;
 };
 
-export type SecretListItem = {
-  uuid: string;
-  name: string;
-  type?: string;
-  data?: Record<string, string>;
-  displayName?: string;
-  description?: string;
-};
+export type { SecretListItem } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/types';
 
 export type S3ObjectInfo = {
   key: string;

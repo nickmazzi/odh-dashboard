@@ -3,7 +3,7 @@ import {
   isConnectionTypeDataField,
   S3ConnectionTypeKeys,
 } from '@odh-dashboard/k8s-core';
-import type { Connection } from '@odh-dashboard/k8s-core';
+import type { Connection, K8sAPIOptions } from '@odh-dashboard/k8s-core';
 import { useWatchConnectionTypes } from '@odh-dashboard/internal/utilities/useWatchConnectionTypes';
 import {
   Button,
@@ -63,9 +63,12 @@ import { Controller, useFormContext, useWatch, Watch } from 'react-hook-form';
 import { Navigate, useParams } from 'react-router';
 import S3FileExplorer from '@odh-dashboard/internal/concepts/fileExplorer/S3FileExplorer/S3FileExplorer';
 import type { ExplorerFile } from '@odh-dashboard/internal/concepts/fileExplorer/types';
+import SecretSelector from '@odh-dashboard/internal/concepts/secrets/SecretSelector/SecretSelector';
+import { getMissingRequiredKeys } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/secretValidation';
+import type { SecretSelection } from '@odh-dashboard/internal/concepts/secrets/SecretSelector/types';
 import AutoragConnectionModal from '~/app/components/common/AutoragConnectionModal';
 import ConfigureFormGroup from '~/app/components/common/ConfigureFormGroup';
-import SecretSelector, { SecretSelection } from '~/app/components/common/SecretSelector';
+import { getSecrets } from '~/app/api/k8s';
 import useReconfigureSafeEffect from '~/app/hooks/useReconfigureSafeEffect';
 import { useS3FileUploadMutation } from '~/app/hooks/mutations';
 import { useOgxModelsQuery } from '~/app/hooks/queries';
@@ -86,7 +89,6 @@ import {
 } from '~/app/utilities/const';
 import { SecretListItem } from '~/app/types';
 import { autoragExperimentsPathname } from '~/app/utilities/routes';
-import { getMissingRequiredKeys } from '~/app/utilities/secretValidation';
 import {
   AUTORAG_UPLOAD_MAX_BYTES,
   AUTORAG_UPLOAD_MAX_FILES,
@@ -152,6 +154,11 @@ function AutoragConfigure({
     [allConnectionTypes],
   );
   const [isConnectionModalOpen, setIsConnectionModalOpen] = React.useState(false);
+
+  const fetchSecrets = React.useCallback(
+    (opts: K8sAPIOptions) => getSecrets('')(namespace ?? '', 'storage')(opts),
+    [namespace],
+  );
 
   const [fileExplorerMode, setFileExplorerMode] = useState<false | 'input_data' | 'test_data'>(
     false,
@@ -432,8 +439,7 @@ function AutoragConfigure({
                               name="input_data_secret_name"
                               render={({ field: { onChange } }) => (
                                 <SecretSelector
-                                  namespace={String(namespace)}
-                                  type="storage"
+                                  fetchSecrets={fetchSecrets}
                                   additionalRequiredKeys={REQUIRED_CONNECTION_SECRET_KEYS}
                                   isDisabled={isSubmitting}
                                   value={selectedSecret?.uuid}

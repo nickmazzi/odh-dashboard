@@ -145,7 +145,7 @@ jest.mock('~/app/components/empty-states/InvalidProject', () => ({
 }));
 
 // Mock SecretSelector component
-jest.mock('~/app/components/common/SecretSelector', () => ({
+jest.mock('@odh-dashboard/internal/concepts/secrets/SecretSelector/SecretSelector', () => ({
   __esModule: true,
   default: ({
     onChange,

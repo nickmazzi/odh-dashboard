@@ -14,7 +14,7 @@ jest.mock('react-router', () => ({
 }));
 
 // Mock SecretSelector component to avoid fetch errors
-jest.mock('~/app/components/common/SecretSelector', () => {
+jest.mock('@odh-dashboard/internal/concepts/secrets/SecretSelector/SecretSelector', () => {
   const { useEffect } = jest.requireActual<typeof import('react')>('react');
   const MockSecretSelector = ({
     onChange,
