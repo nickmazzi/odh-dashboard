@@ -856,13 +856,14 @@ describe('AutoragResults', () => {
     };
     const patterns = { Pattern1: patternWithTemplate };
 
-    it('should call onTryPattern with source: resultsTable from the leaderboard action', () => {
+    it('should call onTryPattern with source: resultsTable from the leaderboard action', async () => {
+      const user = userEvent.setup();
       const onTryPattern = jest.fn();
       renderWithContext(mockPipelineRun, patterns, 'test-namespace', undefined, { onTryPattern });
 
       const row = screen.getByTestId('leaderboard-row-1');
-      fireEvent.click(within(row).getByRole('button', { name: /kebab toggle/i }));
-      fireEvent.click(screen.getByText('Try this pattern'));
+      await user.click(within(row).getByRole('button', { name: /kebab toggle/i }));
+      await user.click(screen.getByText('Try this pattern'));
 
       expect(onTryPattern).toHaveBeenCalledWith('Pattern1', 'resultsTable');
     });
@@ -922,13 +923,14 @@ describe('AutoragResults', () => {
     };
     const patterns = { Pattern1: patternWithTemplate };
 
-    it('should call onViewCode with source: resultsTable from the leaderboard action', () => {
+    it('should call onViewCode with source: resultsTable from the leaderboard action', async () => {
+      const user = userEvent.setup();
       const onViewCode = jest.fn();
       renderWithContext(mockPipelineRun, patterns, 'test-namespace', undefined, { onViewCode });
 
       const row = screen.getByTestId('leaderboard-row-1');
-      fireEvent.click(within(row).getByRole('button', { name: /kebab toggle/i }));
-      fireEvent.click(screen.getByText('View code'));
+      await user.click(within(row).getByRole('button', { name: /kebab toggle/i }));
+      await user.click(screen.getByText('View code'));
 
       expect(onViewCode).toHaveBeenCalledWith('Pattern1', 'resultsTable');
     });
