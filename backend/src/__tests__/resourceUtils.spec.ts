@@ -1,4 +1,4 @@
-import { isRHOAI } from '../utils/resourceUtils';
+import { isRHOAI, shouldRunKserveRoleBindingMigration } from '../utils/resourceUtils';
 import * as resourceUtils from '../utils/resourceUtils';
 import { OdhPlatformType, DataScienceClusterKindStatus } from '../types';
 
@@ -48,6 +48,30 @@ describe('resourceUtils', () => {
       });
       expect(isRHOAI(mockFastify)).toBe(false);
       expect(mockFastify.log.error).toHaveBeenCalledWith(errorMessage);
+    });
+  });
+
+  describe('shouldRunKserveRoleBindingMigration', () => {
+    const originalValue = process.env.DISABLE_KSERVE_RBAC_MIGRATION;
+
+    afterEach(() => {
+      if (originalValue === undefined) {
+        delete process.env.DISABLE_KSERVE_RBAC_MIGRATION;
+      } else {
+        process.env.DISABLE_KSERVE_RBAC_MIGRATION = originalValue;
+      }
+    });
+
+    it('returns false when the platform operator owns the migration', () => {
+      process.env.DISABLE_KSERVE_RBAC_MIGRATION = 'true';
+
+      expect(shouldRunKserveRoleBindingMigration()).toBe(false);
+    });
+
+    it('returns true when the migration is not disabled', () => {
+      delete process.env.DISABLE_KSERVE_RBAC_MIGRATION;
+
+      expect(shouldRunKserveRoleBindingMigration()).toBe(true);
     });
   });
 });

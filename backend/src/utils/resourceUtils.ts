@@ -959,6 +959,9 @@ export const cleanupKserveRoleBindings = async (fastify: KubeFastifyInstance): P
   }
 };
 
+export const shouldRunKserveRoleBindingMigration = (): boolean =>
+  process.env.DISABLE_KSERVE_RBAC_MIGRATION !== 'true';
+
 export const isRHOAI = (fastify: KubeFastifyInstance): boolean => {
   const releaseName = getClusterStatus(fastify)?.release?.name;
   return (

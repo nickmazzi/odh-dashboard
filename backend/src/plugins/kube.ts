@@ -5,7 +5,11 @@ import * as jsYaml from 'js-yaml';
 import * as k8s from '@kubernetes/client-node';
 import { errorHandler, isKubeFastifyInstance } from '../utils';
 import { DEV_MODE } from '../utils/constants';
-import { cleanupKserveRoleBindings, initializeWatchedResources } from '../utils/resourceUtils';
+import {
+  cleanupKserveRoleBindings,
+  initializeWatchedResources,
+  shouldRunKserveRoleBindingMigration,
+} from '../utils/resourceUtils';
 
 const CONSOLE_CONFIG_YAML_FIELD = 'console-config.yaml';
 
@@ -84,6 +88,11 @@ export default fp(async (fastify: FastifyInstance) => {
   // Initialize the watching of resources
   if (isKubeFastifyInstance(fastify)) {
     initializeWatchedResources(fastify);
+
+    if (!shouldRunKserveRoleBindingMigration()) {
+      fastify.log.info('Skipping KServe RoleBinding migration; the platform operator owns it.');
+      return;
+    }
 
     cleanupKserveRoleBindings(fastify).catch((e) =>
       fastify.log.error(

@@ -17,3 +17,8 @@
 - op: replace
   path: /spec/template/spec/serviceAccount
   value: rhods-dashboard
+- op: add
+  path: /spec/template/spec/containers/0/env/-
+  value:
+    name: DISABLE_KSERVE_RBAC_MIGRATION
+    value: 'true'

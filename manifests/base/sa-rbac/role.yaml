@@ -168,3 +168,14 @@ rules:
       - get
       - create
       - update
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+      - roles
+    verbs:
+      - get
+      - list
+      - create
+      - patch
+      - delete
