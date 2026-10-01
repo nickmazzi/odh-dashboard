@@ -1,6 +1,7 @@
 /* eslint-disable camelcase */
 import type { FlatBenchmark, Collection } from '~/app/types';
 import buildEvaluationRequest from '~/app/utils/buildEvaluationRequest';
+import { DASHBOARD_SOURCE_MODE_KEY } from '~/app/utils/sourceModeMetadata';
 
 const baseParams = {
   evaluationName: ' My Eval ',
@@ -94,6 +95,7 @@ describe('buildEvaluationRequest', () => {
         url: 'http://localhost:8080/v1',
         name: 'llama-7b',
       });
+      expect(result.custom).toEqual({ [DASHBOARD_SOURCE_MODE_KEY]: 'model' });
     });
 
     it('should include auth when apiKeySecretRef is provided', () => {
@@ -138,6 +140,7 @@ describe('buildEvaluationRequest', () => {
       });
       expect(result.model.name).toBe('my-agent');
       expect(result.model.url).toBe('https://agent.example.com/v1');
+      expect(result.custom).toEqual({ [DASHBOARD_SOURCE_MODE_KEY]: 'agent' });
     });
 
     it('should include auth when apiKeySecretRef is provided', () => {
@@ -173,6 +176,7 @@ describe('buildEvaluationRequest', () => {
       });
       expect(result.model.name).toBe('gpt-4o');
       expect(result.model.url).toBe('');
+      expect(result.custom).toEqual({ [DASHBOARD_SOURCE_MODE_KEY]: 'prerecorded' });
     });
 
     it('should not include model.auth even if apiKeySecretRef is set', () => {
@@ -369,7 +373,10 @@ describe('buildEvaluationRequest', () => {
       });
 
       expect(result).toHaveProperty('experiment', experiment);
-      expect(result).toHaveProperty('custom', { foo: 'bar' });
+      expect(result).toHaveProperty('custom', {
+        foo: 'bar',
+        [DASHBOARD_SOURCE_MODE_KEY]: 'model',
+      });
     });
 
     it('should split mixed keys correctly between top-level and benchmark parameters', () => {
@@ -549,8 +556,29 @@ describe('buildEvaluationRequest', () => {
       });
 
       expect(result.experiment).toEqual({ name: 'my-exp' });
-      expect(result).toHaveProperty('custom', { foo: 'bar' });
+      expect(result).toHaveProperty('custom', {
+        foo: 'bar',
+        [DASHBOARD_SOURCE_MODE_KEY]: 'model',
+      });
       expect(result).toHaveProperty('tags', ['perf-test']);
+    });
+
+    it('should preserve custom metadata while making the source mode authoritative', () => {
+      const result = buildEvaluationRequest({
+        ...baseParams,
+        benchmark: makeBenchmark(),
+        additionalArgs: {
+          custom: {
+            foo: 'bar',
+            [DASHBOARD_SOURCE_MODE_KEY]: 'agent',
+          },
+        },
+      });
+
+      expect(result.custom).toEqual({
+        foo: 'bar',
+        [DASHBOARD_SOURCE_MODE_KEY]: 'model',
+      });
     });
   });
 

@@ -6,6 +6,7 @@ import {
   JobPrimaryScore,
   SourceMode,
 } from '~/app/types';
+import { DASHBOARD_SOURCE_MODE_KEY, isRecord } from '~/app/utils/sourceModeMetadata';
 
 type BuildEvaluationRequestParams = {
   evaluationName: string;
@@ -112,8 +113,14 @@ const buildEvaluationRequest = ({
     : experimentOverride;
 
   const restOverrides = Object.fromEntries(
-    Object.entries(topLevelOverrides).filter(([key]) => key !== 'experiment'),
+    Object.entries(topLevelOverrides).filter(([key]) => key !== 'experiment' && key !== 'custom'),
   );
+
+  const customOverrides = isRecord(topLevelOverrides.custom) ? topLevelOverrides.custom : {};
+  const custom = {
+    ...customOverrides,
+    [DASHBOARD_SOURCE_MODE_KEY]: sourceMode,
+  };
 
   const isCollectionFlow = !!collection;
   const hardwareConfig = hardwareProfile
@@ -155,6 +162,7 @@ const buildEvaluationRequest = ({
         }
       : { benchmarks: benchmarkEntries }),
     ...restOverrides,
+    custom,
     ...(experiment ? { experiment } : {}),
     // eslint-disable-next-line camelcase
     ...(hardwareConfig ? { hardware_config: hardwareConfig } : {}),

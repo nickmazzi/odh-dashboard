@@ -1,6 +1,7 @@
 import { mockEvaluationJob } from '~/__tests__/unit/testUtils/mockEvaluationData';
 import type { Collection, EvaluationJob, InferenceServiceItem } from '~/app/types';
 import extractReconfigureData, { inferSourceMode } from '~/app/utils/extractReconfigureData';
+import { DASHBOARD_SOURCE_MODE_KEY } from '~/app/utils/sourceModeMetadata';
 
 const mockInferenceService = (name: string, url?: string): InferenceServiceItem => ({
   name,
@@ -45,12 +46,66 @@ describe('inferSourceMode', () => {
     });
   });
 
-  it('should return agent/external when model has url but no matching service', () => {
+  it('should return model/external for legacy jobs with a URL but no source metadata', () => {
+    const job = mockEvaluationJob({ modelName: 'external-model' });
+    job.model.url = 'https://model.example.com/v1';
+
+    expect(inferSourceMode(job, [])).toEqual({
+      sourceMode: 'model',
+      modelSelection: 'external',
+    });
+  });
+
+  it('should return the persisted model source mode for an external model', () => {
+    const job = mockEvaluationJob({ modelName: 'external-model' });
+    job.model.url = 'https://model.example.com/v1';
+    job.custom = { [DASHBOARD_SOURCE_MODE_KEY]: 'model' };
+
+    expect(inferSourceMode(job, [])).toEqual({
+      sourceMode: 'model',
+      modelSelection: 'external',
+    });
+  });
+
+  it('should return the persisted agent source mode for an external agent', () => {
     const job = mockEvaluationJob({ modelName: 'external-agent' });
     job.model.url = 'https://agent.example.com/v1';
+    job.custom = { [DASHBOARD_SOURCE_MODE_KEY]: 'agent' };
 
     expect(inferSourceMode(job, [])).toEqual({
       sourceMode: 'agent',
+      modelSelection: 'external',
+    });
+  });
+
+  it('should return the persisted prerecorded source mode', () => {
+    const job = mockEvaluationJob({ modelName: 'recorded-model' });
+    job.custom = { [DASHBOARD_SOURCE_MODE_KEY]: 'prerecorded' };
+
+    expect(inferSourceMode(job, [])).toEqual({
+      sourceMode: 'prerecorded',
+      modelSelection: 'external',
+    });
+  });
+
+  it('should ignore invalid persisted source mode metadata', () => {
+    const job = mockEvaluationJob({ modelName: 'external-model' });
+    job.model.url = 'https://model.example.com/v1';
+    job.custom = { [DASHBOARD_SOURCE_MODE_KEY]: 'unsupported' };
+
+    expect(inferSourceMode(job, [])).toEqual({
+      sourceMode: 'model',
+      modelSelection: 'external',
+    });
+  });
+
+  it('should prefer persisted source mode metadata over benchmark inference', () => {
+    const job = mockEvaluationJob({ modelName: 'external-model' });
+    job.custom = { [DASHBOARD_SOURCE_MODE_KEY]: 'model' };
+    job.benchmarks = [{ id: 'b1', test_data_ref: { s3: { key: 's3://bucket/data' } } }];
+
+    expect(inferSourceMode(job, [])).toEqual({
+      sourceMode: 'model',
       modelSelection: 'external',
     });
   });

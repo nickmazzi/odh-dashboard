@@ -9,6 +9,7 @@ import { testHook } from '~/__tests__/unit/testUtils/hooks';
 import { createEvaluationJob, getHardwareProfiles } from '~/app/api/k8s';
 import { EVAL_HUB_EVENTS } from '~/app/tracking/evalhubTrackingConstants';
 import type { ReconfigureFormData } from '~/app/utils/extractReconfigureData';
+import { DASHBOARD_SOURCE_MODE_KEY } from '~/app/utils/sourceModeMetadata';
 import type {
   FlatBenchmark,
   Collection,
@@ -557,6 +558,37 @@ describe('useStartEvaluationRunForm - Tracking Events', () => {
   });
 
   describe('Evaluation run submission', () => {
+    it('should preserve the selected agent source when submitting a reconfigured run', async () => {
+      const renderResult = renderForm({
+        initialValues: {
+          ...reconfigureValues,
+          sourceMode: 'agent',
+          modelSelection: 'external',
+          modelName: 'external-agent',
+          selectedInferenceService: undefined,
+          endpointUrl: 'https://agent.example.com/v1',
+          hardwareProfile: undefined,
+          queue: undefined,
+        },
+      });
+
+      await waitFor(() => expect(renderResult.result.current.isValid).toBe(true));
+
+      await act(async () => {
+        await renderResult.result.current.handleSubmit();
+      });
+
+      expect(mockCreateEvaluationJob.mock.calls[0][2]).toEqual(
+        expect.objectContaining({
+          model: {
+            name: 'external-agent',
+            url: 'https://agent.example.com/v1',
+          },
+          custom: { [DASHBOARD_SOURCE_MODE_KEY]: 'agent' },
+        }),
+      );
+    });
+
     it('should notify the parent and track the configured source after a successful submission', async () => {
       const onSuccess = jest.fn();
       const renderResult = renderForm({ trackingSource: 'copy_suite', onSuccess });

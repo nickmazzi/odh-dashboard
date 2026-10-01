@@ -7,6 +7,7 @@ import type {
   SourceMode,
 } from '~/app/types';
 import { getEvaluationName, getThresholdInputValue } from '~/app/utilities/evaluationUtils';
+import { getStoredSourceMode } from '~/app/utils/sourceModeMetadata';
 
 export type ReconfigureFormData = {
   evaluationName: string;
@@ -39,17 +40,22 @@ export const inferSourceMode = (
   inferenceServices: InferenceServiceItem[],
   benchmarks?: NonNullable<EvaluationJob['benchmarks']> | null,
 ): { sourceMode: SourceMode; modelSelection: ModelSelection } => {
+  const storedSourceMode = getStoredSourceMode(job.custom);
+  const matchesClusterModel = inferenceServices.some((is) => is.name === job.model.name);
+
+  if (storedSourceMode) {
+    return {
+      sourceMode: storedSourceMode,
+      modelSelection: storedSourceMode === 'model' && matchesClusterModel ? 'cluster' : 'external',
+    };
+  }
+
   if (hasTestDataRef(benchmarks ?? job.collection?.benchmarks ?? job.benchmarks)) {
     return { sourceMode: 'prerecorded', modelSelection: 'external' };
   }
 
-  const matchesClusterModel = inferenceServices.some((is) => is.name === job.model.name);
   if (matchesClusterModel) {
     return { sourceMode: 'model', modelSelection: 'cluster' };
-  }
-
-  if (job.model.url) {
-    return { sourceMode: 'agent', modelSelection: 'external' };
   }
 
   return { sourceMode: 'model', modelSelection: 'external' };
