@@ -1,0 +1,38 @@
+.evalhub-benchmark-table__row {
+  background-color: var(--pf-t--global--background--color--primary--default);
+
+  &:hover {
+    background-color: var(--pf-t--global--background--color--primary--hover);
+  }
+
+  &.pf-m-selected {
+    background-color: var(--pf-t--global--background--color--secondary--default);
+  }
+
+  &.pf-m-selected:hover {
+    background-color: var(--pf-t--global--background--color--secondary--hover);
+  }
+}
+
+.evalhub-benchmark-table__benchmark-name {
+  padding: 0;
+  font-family: var(--pf-t--global--font--family--heading);
+  font-size: var(--pf-t--global--font--size--body--lg);
+  line-height: var(--pf-t--global--font--line-height--100);
+  font-weight: 600;
+  margin-block-end: var(--pf-t--global--spacer--xs);
+  text-align: left;
+}
+
+.evalhub-benchmark-table__benchmark-name.pf-v6-c-content--p:not(:last-child) {
+  margin-block: 0 var(--pf-t--global--spacer--xs);
+}
+
+.evalhub-benchmark-table__benchmark-id,
+.evalhub-benchmark-table__description {
+  margin-block: 0;
+}
+
+.evalhub-benchmark-table__description {
+  margin-block-start: var(--pf-t--global--spacer--xs);
+}

@@ -381,6 +381,11 @@ type ProviderBenchmark struct {
 	PrimaryScore *ProviderBenchmarkScore        `json:"primary_score,omitempty"`
 	PassCriteria *ProviderBenchmarkPassCriteria `json:"pass_criteria,omitempty"`
 	Agent        *BenchmarkAgentMetadata        `json:"agent,omitempty"`
+	Domains      []string                       `json:"domains,omitempty"`
+	Tasks        []string                       `json:"tasks,omitempty"`
+	Modalities   []string                       `json:"modalities,omitempty"`
+	// EvaluationTargets matches the Collection vocabulary (e.g. model, agent).
+	EvaluationTargets []string `json:"evaluation_targets,omitempty"`
 }
 
 // BenchmarkAgentMetadata holds benchmark-level agent metadata.

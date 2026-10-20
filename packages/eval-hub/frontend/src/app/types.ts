@@ -512,6 +512,10 @@ export type ProviderBenchmark = {
   primary_score?: ProviderBenchmarkScore;
   pass_criteria?: ProviderBenchmarkPassCriteria;
   agent?: BenchmarkAgentMetadata;
+  domains?: string[];
+  tasks?: string[];
+  modalities?: string[];
+  evaluation_targets?: string[];
 };
 
 export type FlatBenchmark = ProviderBenchmark & {

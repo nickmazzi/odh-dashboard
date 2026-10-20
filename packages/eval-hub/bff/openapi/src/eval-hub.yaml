@@ -2313,6 +2313,30 @@ components:
           $ref: '#/components/schemas/ProviderBenchmarkPassCriteria'
         agent:
           $ref: '#/components/schemas/BenchmarkAgentMetadata'
+        domains:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: High-level evaluation domains this benchmark addresses (snake_case), matching the collection domains vocabulary.
+        tasks:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: ML tasks this benchmark evaluates (snake_case), matching the collection tasks vocabulary.
+        modalities:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Data modalities this benchmark uses (snake_case), matching the collection modalities vocabulary.
+        evaluation_targets:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: AI entity types this benchmark evaluates (snake_case), matching the collection evaluation targets vocabulary.
 
     BenchmarkAgentMetadata:
       type: object

@@ -20,7 +20,7 @@ import {
   ToolbarItem,
   ToolbarToggleGroup,
 } from '@patternfly/react-core';
-import { FilterIcon } from '@patternfly/react-icons';
+import { FilterIcon, LightbulbIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import {
   formatCategory,
@@ -28,6 +28,7 @@ import {
   getCategoryColor,
   getMetricDisplayName,
 } from '~/app/components/benchmarkUtils';
+import BenchmarkSuggestionsModal from '~/app/components/BenchmarkSuggestionsModal';
 import CopySuiteBenchmarkDetailsOverlay from '~/app/components/CopySuiteBenchmarkDetailsOverlay';
 import SearchableMultiSelectFilter from '~/app/components/SearchableMultiSelectFilter';
 import { MAX_BENCHMARKS } from '~/app/pages/useCopySuiteForm';
@@ -50,8 +51,10 @@ import {
   buildFlatBenchmarkByKey,
   toggleBenchmarkSelectionKey,
 } from '~/app/utilities/benchmarkDetailsUtils';
+import { getBenchmarkSuggestions } from '~/app/utilities/benchmarkSuggestions';
 import type { FlatBenchmark, Provider } from '~/app/types';
 
+import './BenchmarkTableRow.scss';
 import './CopySuiteBenchmarkSelectionStep.scss';
 
 const PAGE_SIZE = 10;
@@ -62,6 +65,7 @@ type CatalogBenchmark = {
   framework: string;
   id: string;
   name: string;
+  description?: string;
   category?: string;
   metrics: string[];
   targetTypes: string[];
@@ -78,6 +82,36 @@ export type CopySuiteBenchmarkSelectionStepProps = {
   onCancel: () => void;
 };
 
+/**
+ * Widens active filters so benchmarks added from the suggestion modal stay visible in the table.
+ * Inactive filters are left untouched, and the name search is cleared because a single search
+ * term cannot represent multiple incoming benchmarks.
+ */
+const includeBenchmarksInFilters = (
+  filterData: BenchmarkFilterDataType,
+  benchmarks: FlatBenchmark[],
+): BenchmarkFilterDataType => {
+  const widen = (activeValues: string[], incomingValues: string[]): string[] =>
+    activeValues.length === 0 ? activeValues : [...new Set([...activeValues, ...incomingValues])];
+
+  return {
+    ...filterData,
+    [BenchmarkFilterOptions.name]: '',
+    [BenchmarkFilterOptions.category]: widen(
+      filterData[BenchmarkFilterOptions.category],
+      benchmarks.flatMap((benchmark) => (benchmark.category ? [benchmark.category] : [])),
+    ),
+    [BenchmarkFilterOptions.framework]: widen(
+      filterData[BenchmarkFilterOptions.framework],
+      benchmarks.map((benchmark) => benchmark.providerName),
+    ),
+    [BenchmarkFilterOptions.metrics]: widen(
+      filterData[BenchmarkFilterOptions.metrics],
+      benchmarks.flatMap((benchmark) => benchmark.metrics ?? []),
+    ),
+  };
+};
+
 const CopySuiteBenchmarkSelectionStep: React.FC<CopySuiteBenchmarkSelectionStepProps> = ({
   providers,
   selectedBenchmarkKeys,
@@ -92,6 +126,7 @@ const CopySuiteBenchmarkSelectionStep: React.FC<CopySuiteBenchmarkSelectionStepP
     React.useState(selectedBenchmarkKeys);
   const [page, setPage] = React.useState(1);
   const [detailsBenchmarkKey, setDetailsBenchmarkKey] = React.useState<string | undefined>();
+  const [isSuggestionsOpen, setSuggestionsOpen] = React.useState(false);
 
   React.useEffect(() => {
     setDraftSelectedBenchmarkKeys(selectedBenchmarkKeys);
@@ -116,6 +151,7 @@ const CopySuiteBenchmarkSelectionStep: React.FC<CopySuiteBenchmarkSelectionStepP
           framework,
           id: benchmark.id,
           name: benchmark.name || benchmark.id,
+          description: benchmark.description,
           category: benchmark.category,
           metrics: benchmark.metrics ?? [],
           targetTypes,
@@ -268,6 +304,15 @@ const CopySuiteBenchmarkSelectionStep: React.FC<CopySuiteBenchmarkSelectionStepP
   const selectedCollectionCategoryNoun =
     normalizedCollectionCategories.length === 1 ? 'category' : 'categories';
   const flatBenchmarkByKey = React.useMemo(() => buildFlatBenchmarkByKey(providers), [providers]);
+  const suggestions = React.useMemo(
+    () =>
+      getBenchmarkSuggestions(
+        [...flatBenchmarkByKey.values()],
+        draftSelectedBenchmarkKeys,
+        Math.min(10, remainingSelections),
+      ),
+    [flatBenchmarkByKey, draftSelectedBenchmarkKeys, remainingSelections],
+  );
   const detailsBenchmark: FlatBenchmark | undefined = detailsBenchmarkKey
     ? flatBenchmarkByKey.get(detailsBenchmarkKey)
     : undefined;
@@ -464,17 +509,30 @@ const CopySuiteBenchmarkSelectionStep: React.FC<CopySuiteBenchmarkSelectionStepP
                       />
                     </ToolbarGroup>
                   </ToolbarToggleGroup>
-                  <ToolbarItem variant="pagination" align={{ default: 'alignEnd' }}>
-                    <Pagination
-                      itemCount={sortedBenchmarks.length}
-                      page={page}
-                      perPage={PAGE_SIZE}
-                      onSetPage={(_event, nextPage) => setPage(nextPage)}
-                      widgetId="benchmark-catalog-pagination-top"
-                      variant="top"
-                      isCompact
-                    />
-                  </ToolbarItem>
+                  <ToolbarGroup align={{ default: 'alignEnd' }} gap={{ default: 'gapSm' }}>
+                    <ToolbarItem>
+                      <Button
+                        variant="secondary"
+                        icon={<LightbulbIcon />}
+                        data-testid="benchmark-catalog-ai-suggestion"
+                        isDisabled={selectionCount < 1 || remainingSelections < 1}
+                        onClick={() => setSuggestionsOpen(true)}
+                      >
+                        Select similar
+                      </Button>
+                    </ToolbarItem>
+                    <ToolbarItem variant="pagination">
+                      <Pagination
+                        itemCount={sortedBenchmarks.length}
+                        page={page}
+                        perPage={PAGE_SIZE}
+                        onSetPage={(_event, nextPage) => setPage(nextPage)}
+                        widgetId="benchmark-catalog-pagination-top"
+                        variant="top"
+                        isCompact
+                      />
+                    </ToolbarItem>
+                  </ToolbarGroup>
                 </ToolbarContent>
                 {hasAutoPrefilter ? (
                   <ToolbarItem>
@@ -533,7 +591,7 @@ const CopySuiteBenchmarkSelectionStep: React.FC<CopySuiteBenchmarkSelectionStepP
                     {paginatedBenchmarks.map((benchmark) => (
                       <Tr
                         key={benchmark.key}
-                        className={`evalhub-copy-suite-benchmark-catalog__row${
+                        className={`evalhub-benchmark-table__row evalhub-copy-suite-benchmark-catalog__row${
                           detailsBenchmarkKey === benchmark.key
                             ? ' evalhub-copy-suite-benchmark-catalog__row--active'
                             : ''
@@ -566,18 +624,24 @@ const CopySuiteBenchmarkSelectionStep: React.FC<CopySuiteBenchmarkSelectionStepP
                           <Button
                             variant="link"
                             isInline
-                            className="evalhub-copy-suite-benchmark-catalog__benchmark-name"
+                            className="evalhub-benchmark-table__benchmark-name"
                             data-testid={`benchmark-catalog-name-${benchmark.id}`}
                             onClick={() => setDetailsBenchmarkKey(benchmark.key)}
                           >
                             {benchmark.name}
                           </Button>
-                          <Content
-                            component="p"
-                            className="evalhub-copy-suite-benchmark-catalog__benchmark-id"
-                          >
+                          <Content component="p" className="evalhub-benchmark-table__benchmark-id">
                             {benchmark.framework}-{benchmark.id}
                           </Content>
+                          {benchmark.description ? (
+                            <Content
+                              component="p"
+                              className="evalhub-benchmark-table__description"
+                              data-testid={`benchmark-catalog-description-${benchmark.id}`}
+                            >
+                              {benchmark.description}
+                            </Content>
+                          ) : null}
                         </Td>
                         <Td dataLabel="Category">
                           {benchmark.category ? (
@@ -656,6 +720,24 @@ const CopySuiteBenchmarkSelectionStep: React.FC<CopySuiteBenchmarkSelectionStepP
           Cancel
         </Button>
       </div>
+
+      {!isInteractionDisabled && isSuggestionsOpen ? (
+        <BenchmarkSuggestionsModal
+          suggestions={suggestions}
+          onApply={(keys) => {
+            setDraftSelectedBenchmarkKeys((currentKeys) => [...currentKeys, ...keys]);
+            const appliedBenchmarks = keys
+              .map((key) => flatBenchmarkByKey.get(key))
+              .filter((benchmark): benchmark is FlatBenchmark => benchmark !== undefined);
+            setFilterDataFromUser((currentFilterData) =>
+              includeBenchmarksInFilters(currentFilterData, appliedBenchmarks),
+            );
+            setPage(1);
+            setSuggestionsOpen(false);
+          }}
+          onClose={() => setSuggestionsOpen(false)}
+        />
+      ) : null}
 
       {!isInteractionDisabled ? (
         <CopySuiteBenchmarkDetailsOverlay

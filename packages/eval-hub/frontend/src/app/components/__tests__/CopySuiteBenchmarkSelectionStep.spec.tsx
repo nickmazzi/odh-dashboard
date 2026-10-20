@@ -25,6 +25,36 @@ jest.mock('~/app/components/CopySuiteBenchmarkDetailsOverlay', () => ({
     ) : null,
 }));
 
+jest.mock('~/app/components/BenchmarkSuggestionsModal', () => ({
+  __esModule: true,
+  default: ({
+    suggestions,
+    onApply,
+    onClose,
+  }: {
+    suggestions: { key: string }[];
+    onApply: (keys: string[]) => void;
+    onClose: () => void;
+  }) =>
+    suggestions.length > 0 ? (
+      <div data-testid="copy-suite-benchmark-suggestions-modal">
+        <span data-testid="benchmark-suggestions-count">{suggestions.length}</span>
+        {suggestions.map((suggestion) => suggestion.key).join(',')}
+        <button
+          type="button"
+          onClick={() => onApply(suggestions.map((suggestion) => suggestion.key))}
+        >
+          Apply suggestions
+        </button>
+        <button type="button" onClick={onClose}>
+          Close suggestions
+        </button>
+      </div>
+    ) : (
+      <div data-testid="copy-suite-benchmark-suggestions-modal" />
+    ),
+}));
+
 const providers: Provider[] = [
   {
     resource: { id: 'provider-one' },
@@ -73,6 +103,39 @@ const createProvidersWithBenchmarks = (count: number): Provider[] => [
         metrics: ['accuracy'],
       };
     }),
+  },
+];
+
+const suggestionProviders: Provider[] = [
+  {
+    resource: { id: 'provider-one' },
+    name: 'provider-one',
+    benchmarks: [
+      {
+        id: 'selected',
+        name: 'Selected benchmark',
+        category: 'reasoning',
+        metrics: ['acc'],
+        tasks: ['reasoning'],
+        domains: ['knowledge_and_reasoning'],
+      },
+      {
+        id: 'related',
+        name: 'Related benchmark',
+        category: 'reasoning',
+        metrics: ['acc'],
+        tasks: ['reasoning'],
+        domains: ['knowledge_and_reasoning'],
+      },
+      {
+        id: 'unrelated',
+        name: 'Unrelated benchmark',
+        category: 'safety',
+        metrics: ['acc'],
+        tasks: ['safety'],
+        domains: ['trustworthiness'],
+      },
+    ],
   },
 ];
 
@@ -549,6 +612,137 @@ describe('CopySuiteBenchmarkSelectionStep', () => {
     expect(screen.getByTestId('copy-suite-next-select-benchmarks')).not.toBeDisabled();
     fireEvent.click(screen.getByTestId('copy-suite-next-select-benchmarks'));
     expect(onNext).toHaveBeenCalledWith(initiallySelectedKeys.slice(1));
+  });
+
+  it('should disable the AI suggestion button until a benchmark is selected', () => {
+    renderSelectionStep({ selectedBenchmarkKeys: [] });
+
+    expect(screen.getByTestId('benchmark-catalog-ai-suggestion')).toBeDisabled();
+    expect(screen.getByTestId('benchmark-catalog-ai-suggestion')).toHaveTextContent(
+      'Select similar',
+    );
+  });
+
+  it('should disable the AI suggestion button at the selection limit', () => {
+    renderSelectionStep({
+      providers: createProvidersWithBenchmarks(20),
+      selectedBenchmarkKeys: Array.from(
+        { length: 20 },
+        (_, index) => `provider-many:benchmark-${String(index).padStart(2, '0')}`,
+      ),
+    });
+
+    expect(screen.getByTestId('benchmark-catalog-ai-suggestion')).toBeDisabled();
+  });
+
+  it('should suggest up to 10 benchmarks by default', () => {
+    renderSelectionStep({
+      providers: createProvidersWithBenchmarks(30),
+      selectedBenchmarkKeys: ['provider-many:benchmark-00'],
+    });
+
+    fireEvent.click(screen.getByTestId('benchmark-catalog-ai-suggestion'));
+
+    expect(screen.getByTestId('benchmark-suggestions-count')).toHaveTextContent('10');
+  });
+
+  it('should reduce the suggestion count to the remaining selection slots', () => {
+    renderSelectionStep({
+      providers: createProvidersWithBenchmarks(30),
+      selectedBenchmarkKeys: Array.from(
+        { length: 12 },
+        (_, index) => `provider-many:benchmark-${String(index).padStart(2, '0')}`,
+      ),
+    });
+
+    fireEvent.click(screen.getByTestId('benchmark-catalog-ai-suggestion'));
+
+    expect(screen.getByTestId('benchmark-suggestions-count')).toHaveTextContent('8');
+  });
+
+  it('should disable the AI suggestion button when interaction is disabled', () => {
+    renderSelectionStep({ isInteractionDisabled: true });
+
+    expect(screen.getByTestId('benchmark-catalog-ai-suggestion')).toBeDisabled();
+  });
+
+  it('should open the suggestions modal and apply suggestions to the draft selection', () => {
+    const { onNext } = renderSelectionStep({
+      providers: suggestionProviders,
+      selectedBenchmarkKeys: ['provider-one:selected'],
+    });
+
+    fireEvent.click(screen.getByTestId('benchmark-catalog-ai-suggestion'));
+
+    const modal = screen.getByTestId('copy-suite-benchmark-suggestions-modal');
+    expect(modal).toHaveTextContent('provider-one:related');
+    expect(modal).not.toHaveTextContent('provider-one:unrelated');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply suggestions' }));
+
+    expect(screen.queryByTestId('copy-suite-benchmark-suggestions-modal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('benchmark-catalog-checkbox-related')).toBeChecked();
+    expect(screen.getByTestId('benchmark-catalog-limit-message')).toHaveTextContent(
+      '18 out of 20 remaining',
+    );
+    expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it('should close the suggestions modal without changing the draft selection', () => {
+    renderSelectionStep({
+      providers: suggestionProviders,
+      selectedBenchmarkKeys: ['provider-one:selected'],
+    });
+
+    fireEvent.click(screen.getByTestId('benchmark-catalog-ai-suggestion'));
+    fireEvent.click(screen.getByRole('button', { name: 'Close suggestions' }));
+
+    expect(screen.queryByTestId('copy-suite-benchmark-suggestions-modal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('benchmark-catalog-checkbox-related')).not.toBeChecked();
+    expect(screen.getByTestId('benchmark-catalog-limit-message')).toHaveTextContent(
+      '19 out of 20 remaining',
+    );
+  });
+
+  it('should widen active filters to include applied suggestions', () => {
+    renderSelectionStep({
+      providers: [
+        {
+          resource: { id: 'provider-one' },
+          name: 'provider-one',
+          benchmarks: [
+            {
+              id: 'selected',
+              name: 'Selected benchmark',
+              category: 'reasoning',
+              metrics: ['acc'],
+              tasks: ['reasoning'],
+            },
+            {
+              id: 'safety-related',
+              name: 'Safety related benchmark',
+              category: 'safety',
+              metrics: ['acc'],
+              tasks: ['reasoning'],
+            },
+          ],
+        },
+      ],
+      selectedBenchmarkKeys: ['provider-one:selected'],
+    });
+
+    fireEvent.click(screen.getByTestId('benchmark-catalog-category-filter'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Reasoning' }));
+    expect(screen.getByTestId('benchmark-catalog-category-filter-badge')).toHaveTextContent('1');
+    expect(
+      screen.queryByTestId('benchmark-catalog-checkbox-safety-related'),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('benchmark-catalog-ai-suggestion'));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply suggestions' }));
+
+    expect(screen.getByTestId('benchmark-catalog-category-filter-badge')).toHaveTextContent('2');
+    expect(screen.getByTestId('benchmark-catalog-checkbox-safety-related')).toBeChecked();
   });
 
   it('should open benchmark details in a drawer overlay', () => {
