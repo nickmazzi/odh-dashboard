@@ -27,7 +27,7 @@ import {
   ToolbarGroup,
   ToolbarItem,
 } from '@patternfly/react-core';
-import { ChartLineIcon, SearchIcon } from '@patternfly/react-icons';
+import { SearchIcon } from '@patternfly/react-icons';
 import { Collection, ProviderAgentMetadata, ProviderBenchmark } from '~/app/types';
 import { useEvalHubTracking } from '~/app/tracking/useEvalHubTracking';
 import { EVAL_HUB_EVENTS } from '~/app/tracking/evalhubTrackingConstants';
@@ -181,7 +181,7 @@ const CollectionBenchmarksSection: React.FC<CollectionBenchmarksSectionProps> = 
                 <ToolbarGroup variant="filter-group">
                   <SearchableMultiSelectFilter
                     categoryName="Metrics"
-                    icon={<ChartLineIcon aria-hidden="true" />}
+                    emptyLabel="All metrics"
                     options={availableMetrics}
                     selected={metricFilter}
                     formatLabel={getMetricDisplayName}

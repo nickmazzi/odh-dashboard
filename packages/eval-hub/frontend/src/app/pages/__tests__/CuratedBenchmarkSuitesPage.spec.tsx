@@ -97,8 +97,9 @@ describe('CuratedBenchmarkSuitesPage', () => {
     expect(screen.getByText('Agent collections')).toBeInTheDocument();
     expect(screen.getByText('Select a collection to evaluate your agent.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create collection' })).toBeInTheDocument();
-    expect(screen.getByTestId('benchmark-suites-category-filter')).toHaveTextContent('Category');
-    expect(screen.getByTestId('benchmark-suites-category-filter-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('benchmark-suites-category-filter')).toHaveTextContent(
+      'All categories',
+    );
     expect(screen.queryByTestId('benchmark-suites-evaluates-filter')).not.toBeInTheDocument();
     expect(screen.getByTestId('benchmark-suites-pagination-top')).toBeInTheDocument();
     expect(screen.queryByTestId('benchmark-suites-pagination-bottom')).not.toBeInTheDocument();

@@ -546,7 +546,7 @@ describe('ImportCollectionModal', () => {
     expect(findEditor().value).toContain('name: renamed');
   });
 
-  it('should close, track, and navigate to the collections page on success', async () => {
+  it('should close, track, and navigate to the Custom collections tab on success', async () => {
     mockMutate.mockImplementation((_content: string, options: { onSuccess: () => void }) =>
       options.onSuccess(),
     );
@@ -558,7 +558,7 @@ describe('ImportCollectionModal', () => {
       { surface: 'collection_gallery' },
     );
     expect(mockOnClose).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('/evaluation/test-ns/collections');
+    expect(mockNavigate).toHaveBeenCalledWith('/evaluation/test-ns?tab=evaluate');
     expect(screen.queryByTestId('import-collection-success')).not.toBeInTheDocument();
     expect(mockMutate).toHaveBeenCalledWith(validContent, expect.anything());
   });

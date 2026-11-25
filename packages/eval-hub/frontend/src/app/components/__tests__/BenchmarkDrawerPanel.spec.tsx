@@ -47,6 +47,12 @@ describe('BenchmarkDrawerPanel', () => {
     expect(screen.getByText('TruthfulQA MC1')).toBeInTheDocument();
   });
 
+  it('should format category labels the same way as the benchmark cards', () => {
+    renderPanel({ category: 'instruction_following' });
+    expect(screen.getByText('Instruction following')).toBeInTheDocument();
+    expect(screen.queryByText('Instruction_following')).not.toBeInTheDocument();
+  });
+
   it('should render empty panel when benchmark is undefined', () => {
     const panel = (
       <BenchmarkDrawerPanel

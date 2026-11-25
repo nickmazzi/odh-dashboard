@@ -75,47 +75,38 @@
   padding-block-start: var(--pf-t--global--spacer--xl);
 }
 
-.evalhub-evaluate-tab {
-  gap: var(--pf-t--global--spacer--md);
-}
-
-.evalhub-browse-benchmarks-card__title {
-  margin-block-end: var(--pf-t--global--spacer--sm);
-}
-
-.evalhub-browse-benchmarks-card__description {
-  margin: 0;
-}
-
-.evalhub-evaluate-tab__curated {
-  margin-block-start: var(--pf-t--global--spacer--md);
-}
-
-.evalhub-create-suite-card__body {
-  align-items: flex-start;
+.evalhub-individual-benchmarks-tab {
   display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
   flex-direction: column;
-  flex-grow: 1;
 }
 
-.evalhub-create-suite-card__icon {
-  width: calc(var(--pf-t--global--spacer--xl) + var(--pf-t--global--spacer--sm));
-  height: calc(var(--pf-t--global--spacer--xl) + var(--pf-t--global--spacer--sm));
-  flex-shrink: 0;
-  margin-block-end: var(--pf-t--global--spacer--md);
-  border-radius: 50%;
-  background-color: var(--pf-t--global--color--brand--default);
-  color: var(--pf-t--color--white);
-  font-size: var(--pf-t--global--font--size--lg);
+// The benchmark catalog owns its scrolling so its details drawer can size to the tab.
+.evalhub-evaluations-page__tabs
+  ~ .pf-v6-c-tab-content:not([hidden]):has(> .evalhub-individual-benchmarks-tab) {
+  overflow: hidden;
+
+  > .evalhub-evaluations-tab-content {
+    height: auto;
+    flex: 1 1 auto;
+  }
 }
 
-.evalhub-create-suite-card__title {
-  margin-block-end: var(--pf-t--global--spacer--xs);
+.evalhub-individual-benchmarks-tab__description {
+  margin-block: 0 var(--pf-t--global--spacer--lg);
 }
 
-.evalhub-create-suite-card__description {
-  max-width: 28rem;
-  margin: 0;
+.evalhub-individual-benchmarks-tab__catalog {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.evalhub-gallery-tab__description,
+.evalhub-custom-collections-tab__description {
+  margin-block: 0 var(--pf-t--global--spacer--lg);
 }
 
 .evalhub-runs-tab__description {

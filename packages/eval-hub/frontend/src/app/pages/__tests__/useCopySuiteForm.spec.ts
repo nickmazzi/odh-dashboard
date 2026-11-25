@@ -454,7 +454,7 @@ describe('useCopySuiteForm', () => {
       expect.arrayContaining([expect.objectContaining({ path: '/benchmarks' })]),
     );
     expect(mockCloneCollection).not.toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('/evaluation/test-namespace/collections');
+    expect(mockNavigate).toHaveBeenCalledWith('/evaluation/test-namespace?tab=evaluate');
   });
 
   it('should preserve untouched source benchmark settings when another benchmark is edited', async () => {
@@ -752,7 +752,7 @@ describe('useCopySuiteForm', () => {
       'Collection created',
       '"New suite" has been added to your collections.',
     );
-    expect(mockNavigate).toHaveBeenCalledWith('/evaluation/test-namespace/collections');
+    expect(mockNavigate).toHaveBeenCalledWith('/evaluation/test-namespace?tab=evaluate');
     expect(mockCloneCollection).not.toHaveBeenCalled();
 
     const savedCall = mockTrackEvent.mock.calls.find(
@@ -1979,7 +1979,7 @@ describe('useCopySuiteForm', () => {
     );
   });
 
-  it('should save a clone and return to the benchmark suites page', async () => {
+  it('should save a clone and return to the Custom collections tab', async () => {
     const clonedCollection: Collection = {
       resource: { id: 'saved-collection' },
       name: 'Saved suite',
@@ -1997,7 +1997,7 @@ describe('useCopySuiteForm', () => {
       'Collection saved',
       '"Saved suite" has been added to your collections.',
     );
-    expect(mockNavigate).toHaveBeenCalledWith('/evaluation/test-namespace/collections');
+    expect(mockNavigate).toHaveBeenCalledWith('/evaluation/test-namespace?tab=evaluate');
     const copiedCall = mockTrackEvent.mock.calls.find(
       ([eventName]) => eventName === EVAL_HUB_EVENTS.COLLECTION_SAVED,
     );

@@ -35,7 +35,7 @@ import {
 } from '~/app/utils/collectionImport';
 import { useCollectionsQuery, useImportCollectionMutation } from '~/app/hooks/collections';
 import useDarkMode from '~/app/hooks/useDarkMode';
-import { evaluationBenchmarkSuitesRoute } from '~/app/routes';
+import { evaluationEvaluateRoute } from '~/app/routes';
 import type { Collection } from '~/app/types';
 import { useEvalHubTracking } from '~/app/tracking/useEvalHubTracking';
 import { EVAL_HUB_EVENTS } from '~/app/tracking/evalhubTrackingConstants';
@@ -327,7 +327,7 @@ const ImportCollectionModal: React.FC<ImportCollectionModalProps> = ({
       onSuccess: () => {
         trackEvalHubEvent(EVAL_HUB_EVENTS.COLLECTION_IMPORT_SUCCEEDED, { surface });
         onClose();
-        navigate(evaluationBenchmarkSuitesRoute(namespace));
+        navigate(evaluationEvaluateRoute(namespace));
       },
       onError: (error) => {
         trackEvalHubEvent(EVAL_HUB_EVENTS.COLLECTION_IMPORT_FAILED, { surface });

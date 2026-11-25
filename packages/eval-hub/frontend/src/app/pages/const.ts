@@ -104,3 +104,33 @@ export const benchmarkSortLabels: Record<BenchmarkSortOption, string> = {
   [BenchmarkSortOption.NAME]: 'Name',
   [BenchmarkSortOption.CATEGORY]: 'Category',
 };
+
+/** Sort orders offered by the individual benchmark catalog. */
+export enum BenchmarkCatalogSortOption {
+  NAME_ASC = 'name_asc',
+  NAME_DESC = 'name_desc',
+  CATEGORY_ASC = 'category_asc',
+  CATEGORY_DESC = 'category_desc',
+}
+
+export const benchmarkCatalogSortLabels: Record<BenchmarkCatalogSortOption, string> = {
+  [BenchmarkCatalogSortOption.NAME_ASC]: 'Name (A–Z)',
+  [BenchmarkCatalogSortOption.NAME_DESC]: 'Name (Z–A)',
+  [BenchmarkCatalogSortOption.CATEGORY_ASC]: 'Category (A–Z)',
+  [BenchmarkCatalogSortOption.CATEGORY_DESC]: 'Category (Z–A)',
+};
+
+/** Sort orders offered by the benchmark collection gallery. */
+export enum CollectionSortOption {
+  DATE_CREATED_DESC = 'date_created_desc',
+  DATE_CREATED_ASC = 'date_created_asc',
+  NAME_ASC = 'name_asc',
+  NAME_DESC = 'name_desc',
+}
+
+export const collectionSortLabels: Record<CollectionSortOption, string> = {
+  [CollectionSortOption.DATE_CREATED_DESC]: 'Date created (newest first)',
+  [CollectionSortOption.DATE_CREATED_ASC]: 'Date created (oldest first)',
+  [CollectionSortOption.NAME_ASC]: 'Name (A–Z)',
+  [CollectionSortOption.NAME_DESC]: 'Name (Z–A)',
+};

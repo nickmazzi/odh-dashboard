@@ -3,17 +3,24 @@ import * as React from 'react';
 import {
   Bullseye,
   Button,
+  Content,
   EmptyState,
   EmptyStateActions,
   EmptyStateBody,
   EmptyStateFooter,
   EmptyStateVariant,
+  Flex,
+  FlexItem,
   Gallery,
   GalleryItem,
   Label,
   LabelGroup,
+  MenuToggle,
   Pagination,
   SearchInput,
+  Select,
+  SelectList,
+  SelectOption,
   Spinner,
   Title,
   Toolbar,
@@ -23,19 +30,7 @@ import {
   ToolbarItem,
   ToolbarToggleGroup,
 } from '@patternfly/react-core';
-import {
-  ChartLineIcon,
-  CubeIcon,
-  DotCircleIcon,
-  ExclamationCircleIcon,
-  FilterIcon,
-  IndustryIcon,
-  LayerGroupIcon,
-  RhUiCollectionFillIcon,
-  SearchIcon,
-  TagsIcon,
-  TasksIcon,
-} from '@patternfly/react-icons';
+import { ExclamationCircleIcon, FilterIcon, SearchIcon } from '@patternfly/react-icons';
 import { mockCuratedBenchmarkSuiteCollections } from '~/app/mockBenchmarkSuiteCollections';
 import { useCollectionsQuery, useDeleteCollectionMutation } from '~/app/hooks/collections';
 import { useNotification } from '~/app/hooks/useNotification';
@@ -44,7 +39,6 @@ import { getCuratedCollectionConfig } from '~/app/curatedSuiteConfig';
 import BenchmarkSuiteCard, { isPopularCollection } from '~/app/components/BenchmarkSuiteCard';
 import BenchmarkSuiteCardSkeleton from '~/app/components/BenchmarkSuiteCardSkeleton';
 import type { BenchmarkSuiteCardAction } from '~/app/components/BenchmarkSuiteCard';
-import CreateBenchmarkSuiteCard from '~/app/components/CreateBenchmarkSuiteCard';
 import DeleteConfirmationModal from '~/app/components/DeleteConfirmationModal';
 import SearchableMultiSelectFilter from '~/app/components/SearchableMultiSelectFilter';
 import type { Collection, CollectionFilterParams, CollectionScope } from '~/app/types';
@@ -55,6 +49,8 @@ import {
 } from '~/app/components/benchmarkUtils';
 import type { BenchmarkNameMap } from '~/app/components/benchmarkUtils';
 import { COLLECTION_FETCH_LIMIT } from '~/app/utilities/const';
+import { CollectionSortOption, collectionSortLabels } from '~/app/pages/const';
+import { isCollectionSortOption, sortCollections } from '~/app/utilities/collectionListFilters';
 import { useEvalHubTracking } from '~/app/tracking/useEvalHubTracking';
 import type {
   BenchmarkCollectionFilterType,
@@ -67,7 +63,6 @@ import './BenchmarkSuitesGallery.scss';
 const DEFAULT_PAGE_SIZE = 8;
 const PAGE_SIZE_OPTIONS = [8, 16, 32];
 const GALLERY_LOADING_CARD_COUNT = 6;
-const BENCHMARK_SUITES_LOADING_CARD_COUNT = 2;
 
 type SelectedFilterGroupProps = {
   categoryName: string;
@@ -166,36 +161,6 @@ const sortCollectionsByName = (collections: Collection[]): Collection[] =>
     return nameComparison || first.resource.id.localeCompare(second.resource.id);
   });
 
-const getCollectionCreatedAt = (collection: Collection): number | undefined => {
-  if (!collection.resource.created_at) {
-    return undefined;
-  }
-
-  const timestamp = Date.parse(collection.resource.created_at);
-  return Number.isNaN(timestamp) ? undefined : timestamp;
-};
-
-const sortCollectionsByCreatedAt = (collections: Collection[]): Collection[] =>
-  [...collections].toSorted((first, second) => {
-    const firstCreatedAt = getCollectionCreatedAt(first);
-    const secondCreatedAt = getCollectionCreatedAt(second);
-
-    if (firstCreatedAt == null && secondCreatedAt != null) {
-      return 1;
-    }
-    if (firstCreatedAt != null && secondCreatedAt == null) {
-      return -1;
-    }
-    if (firstCreatedAt != null && secondCreatedAt != null && firstCreatedAt !== secondCreatedAt) {
-      return secondCreatedAt - firstCreatedAt;
-    }
-
-    const nameComparison = first.name.localeCompare(second.name, undefined, {
-      sensitivity: 'base',
-    });
-    return nameComparison || first.resource.id.localeCompare(second.resource.id);
-  });
-
 const areStringArraysEqual = (first: string[], second: string[]): boolean =>
   first.length === second.length && first.every((value, index) => value === second[index]);
 
@@ -246,9 +211,8 @@ export const hasCuratedIndex = (collection: Collection): boolean =>
 type BenchmarkSuitesGalleryProps = {
   namespace: string;
   benchmarkNameMap?: BenchmarkNameMap;
-  maxVisibleCollections?: number;
-  showCreateSuiteCard?: boolean;
   showFilters?: boolean;
+  showSort?: boolean;
   showEvaluatesFilter?: boolean;
   showPagination?: boolean;
   showPaginationControls?: boolean;
@@ -267,12 +231,8 @@ type BenchmarkSuitesGalleryProps = {
   dropdownActionState?: unknown;
   // TODO: Remove this temporary switch once curated collections use the API.
   useMockFallback?: boolean;
-  createSuiteRoute?: string;
-  createSuiteRouteState?: unknown;
-  onCreateSuite?: () => void;
-  /** Opens the collection import dialog from the create tile; omit to hide the Import button. */
-  onImportCollection?: () => void;
-  importDisabled?: boolean;
+  /** Replaces the default unfiltered empty state (filter-empty messaging is unchanged). */
+  emptyState?: React.ReactNode;
   onPrimaryAction: (collection: Collection) => void;
   onDropdownAction?: (collection: Collection) => void;
   onEditCollection?: (collection: Collection) => void;
@@ -283,9 +243,8 @@ type BenchmarkSuitesGalleryProps = {
 const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
   namespace,
   benchmarkNameMap,
-  maxVisibleCollections,
-  showCreateSuiteCard = true,
   showFilters = false,
+  showSort = false,
   showEvaluatesFilter = true,
   showPagination = false,
   showPaginationControls = true,
@@ -302,11 +261,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
   dropdownActionRoute,
   dropdownActionState,
   useMockFallback = false,
-  createSuiteRoute,
-  createSuiteRouteState,
-  onCreateSuite,
-  onImportCollection,
-  importDisabled = false,
+  emptyState,
   onPrimaryAction,
   onDropdownAction,
   onEditCollection,
@@ -328,10 +283,10 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
   const [pageSize, setPageSize] = React.useState(DEFAULT_PAGE_SIZE);
   const [collectionToDelete, setCollectionToDelete] = React.useState<Collection | null>(null);
   const [showMoreFilters, setShowMoreFilters] = React.useState(false);
+  const [sortOption, setSortOption] = React.useState(CollectionSortOption.DATE_CREATED_DESC);
+  const [isSortOpen, setIsSortOpen] = React.useState(false);
   const trackingScope = React.useRef(createEvalHubTrackingScope()).current;
-  const loadingCardCount = showCreateSuiteCard
-    ? BENCHMARK_SUITES_LOADING_CARD_COUNT
-    : GALLERY_LOADING_CARD_COUNT;
+  const loadingCardCount = GALLERY_LOADING_CARD_COUNT;
   const notification = useNotification();
 
   const trackCollectionFilterApplied = React.useCallback(
@@ -420,20 +375,22 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
       benchmarkFilter.length > 0,
     );
   const queryLimit = showPagination
-    ? requireCuratedIndex || isClientSideFiltering || !showPaginationControls
+    ? requireCuratedIndex || isClientSideFiltering || showSort || !showPaginationControls
       ? COLLECTION_FETCH_LIMIT
       : pageSize
-    : maxVisibleCollections
-      ? COLLECTION_FETCH_LIMIT
-      : undefined;
+    : undefined;
   const queryOffset =
-    showPaginationControls && showPagination && !isClientSideFiltering && !requireCuratedIndex
+    showPaginationControls &&
+    showPagination &&
+    !isClientSideFiltering &&
+    !requireCuratedIndex &&
+    !showSort
       ? (page - 1) * pageSize
       : undefined;
   // Keep route-level filters such as the curated agent/model selection on the API request.
-  // User-selected gallery filters are applied locally against the fetched collection set. When a
-  // filter is active, that set is intentionally capped at COLLECTION_FETCH_LIMIT until filtering
-  // and filter-option discovery move fully to the API.
+  // User-selected gallery filters and sorting are applied locally against the fetched collection
+  // set. When a filter or sort is active, that set is intentionally capped at
+  // COLLECTION_FETCH_LIMIT until filtering and ordering move fully to the API.
   // TODO: Use API-side filtering and created_at ordering here; fetching 200 and sorting client-side
   // is only a temporary approximation and may miss newer collections beyond this limit.
   const { data, isLoading, isFetching, error, refetch } = useCollectionsQuery(
@@ -509,17 +466,10 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
     requireCuratedIndex,
     shouldShowLoadError,
   ]);
-  const sourceCollections = React.useMemo(() => {
-    const orderedCollections =
-      scope === 'tenant'
-        ? maxVisibleCollections
-          ? sortCollectionsByCreatedAt(collections)
-          : sortCollectionsByName(collections)
-        : collections;
-    return maxVisibleCollections
-      ? orderedCollections.slice(0, maxVisibleCollections)
-      : orderedCollections;
-  }, [collections, maxVisibleCollections, scope]);
+  const sourceCollections = React.useMemo(
+    () => (scope === 'tenant' && !showSort ? sortCollectionsByName(collections) : collections),
+    [collections, scope, showSort],
+  );
   const benchmarkLabels = React.useMemo(() => {
     const labels = new Map<string, string>();
     sourceCollections.forEach((collection) => {
@@ -739,17 +689,23 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
     benchmarkFilter,
   ]);
 
-  // Mock data and client-side-filtered results need local slicing. The latter are limited to the
-  // first COLLECTION_FETCH_LIMIT API results by queryLimit above.
+  // Sorting is applied locally, so the whole capped result set is ordered before it is sliced
+  // into pages. The fetched set is limited to COLLECTION_FETCH_LIMIT by queryLimit above.
+  const sortedCollections = React.useMemo(
+    () => (showSort ? sortCollections(filteredCollections, sortOption) : filteredCollections),
+    [filteredCollections, showSort, sortOption],
+  );
+
+  // Mock data, client-side-filtered results, and sorted results need local slicing.
   const shouldUseClientSidePagination =
-    isUsingMockCollections || isClientSideFiltering || requireCuratedIndex;
+    isUsingMockCollections || isClientSideFiltering || requireCuratedIndex || showSort;
   // TODO: Remove the mock count branch when mock collections are no longer needed and always use
   // the API total_count for pagination.
   const filteredCollectionCount =
     showPagination && showPaginationControls
       ? shouldUseClientSidePagination
-        ? filteredCollections.length
-        : (data?.total_count ?? filteredCollections.length)
+        ? sortedCollections.length
+        : (data?.total_count ?? sortedCollections.length)
       : totalCount;
   // A server-side count drop (for example, deleting the last suite on the last page) can leave
   // the page state beyond the last valid page. Render the clamped page; the effect below corrects
@@ -759,10 +715,12 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
   const visibleCollections = showPagination
     ? showPaginationControls
       ? shouldUseClientSidePagination
-        ? filteredCollections.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-        : filteredCollections.slice(0, pageSize)
-      : filteredCollections
-    : sourceCollections;
+        ? sortedCollections.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+        : sortedCollections.slice(0, pageSize)
+      : sortedCollections
+    : showSort
+      ? sortedCollections
+      : sourceCollections;
   const hasPopularCollections = visibleCollections.some(isPopularCollection);
   const hasActiveFilters = Boolean(
     nameFilter ||
@@ -775,8 +733,8 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
     metricFilter.length > 0 ||
     benchmarkFilter.length > 0,
   );
-  const areFiltersDisabled =
-    shouldShowLoadError || (!isLoading && sourceCollections.length === 0 && !hasActiveFilters);
+  const isCollectionListEmpty = !isLoading && sourceCollections.length === 0 && !hasActiveFilters;
+  const areFiltersDisabled = shouldShowLoadError || isCollectionListEmpty;
   const isRefreshing = isFetching && !isLoading;
   const hasMoreFilterOptions = Boolean(
     (showEvaluatesFilter && evaluatesOptions.length > 0) ||
@@ -801,6 +759,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
     modalityFilter,
     nameFilter,
     namespace,
+    sortOption,
     tagFilter,
     taskFilter,
     benchmarkFilter,
@@ -808,6 +767,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
 
   React.useEffect(() => {
     setPage(1);
+    setSortOption(CollectionSortOption.DATE_CREATED_DESC);
     setNameFilter('');
     setDomainFilter([]);
     setEvaluatesFilter([]);
@@ -901,8 +861,12 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
 
   return (
     <>
-      {showFilters && (
-        <Toolbar clearAllFilters={clearFilters} data-testid="benchmark-suites-filter-toolbar">
+      {showFilters && !isCollectionListEmpty && (
+        <Toolbar
+          className="evalhub-benchmark-suite-gallery__toolbar"
+          clearAllFilters={clearFilters}
+          data-testid="benchmark-suites-filter-toolbar"
+        >
           <ToolbarContent data-testid="benchmark-suites-filter-content">
             <ToolbarToggleGroup breakpoint="md" toggleIcon={<FilterIcon />}>
               <ToolbarGroup
@@ -936,12 +900,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 {domainOptions.length > 0 && (
                   <SearchableMultiSelectFilter
                     categoryName="Category"
-                    icon={
-                      <DotCircleIcon
-                        aria-hidden="true"
-                        data-testid="benchmark-suites-category-filter-icon"
-                      />
-                    }
+                    emptyLabel="All categories"
                     options={domainOptions}
                     selected={domainFilter}
                     showSelectedLabels={false}
@@ -960,7 +919,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 {benchmarkOptions.length > 0 && (
                   <SearchableMultiSelectFilter
                     categoryName="Benchmarks"
-                    icon={<RhUiCollectionFillIcon aria-hidden="true" />}
+                    emptyLabel="All benchmarks"
                     options={benchmarkOptions}
                     selected={benchmarkFilter}
                     showSelectedLabels={false}
@@ -984,7 +943,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 {metricOptions.length > 0 && (
                   <SearchableMultiSelectFilter
                     categoryName="Metrics"
-                    icon={<ChartLineIcon aria-hidden="true" />}
+                    emptyLabel="All metrics"
                     options={metricOptions}
                     selected={metricFilter}
                     showSelectedLabels={false}
@@ -1003,7 +962,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 {showMoreFilters && showEvaluatesFilter && evaluatesOptions.length > 0 && (
                   <SearchableMultiSelectFilter
                     categoryName="Evaluates"
-                    icon={<CubeIcon aria-hidden="true" />}
+                    emptyLabel="All evaluates"
                     options={evaluatesOptions}
                     selected={evaluatesFilter}
                     showSelectedLabels={false}
@@ -1027,7 +986,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 {showMoreFilters && modalityOptions.length > 0 && (
                   <SearchableMultiSelectFilter
                     categoryName="Modalities"
-                    icon={<LayerGroupIcon aria-hidden="true" />}
+                    emptyLabel="All modalities"
                     options={modalityOptions}
                     selected={modalityFilter}
                     showSelectedLabels={false}
@@ -1051,7 +1010,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 {showMoreFilters && taskOptions.length > 0 && (
                   <SearchableMultiSelectFilter
                     categoryName="Tasks"
-                    icon={<TasksIcon aria-hidden="true" />}
+                    emptyLabel="All tasks"
                     options={taskOptions}
                     selected={taskFilter}
                     showSelectedLabels={false}
@@ -1070,7 +1029,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 {showMoreFilters && industryOptions.length > 0 && (
                   <SearchableMultiSelectFilter
                     categoryName="Industry"
-                    icon={<IndustryIcon aria-hidden="true" />}
+                    emptyLabel="All industries"
                     options={industryOptions}
                     selected={industryFilter}
                     showSelectedLabels={false}
@@ -1094,7 +1053,7 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 {showMoreFilters && tagOptions.length > 0 && (
                   <SearchableMultiSelectFilter
                     categoryName="Tags"
-                    icon={<TagsIcon aria-hidden="true" />}
+                    emptyLabel="All tags"
                     options={tagOptions}
                     selected={tagFilter}
                     showSelectedLabels={false}
@@ -1124,6 +1083,54 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
                 )}
               </ToolbarGroup>
             </ToolbarToggleGroup>
+            {showSort && (
+              <ToolbarItem>
+                <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                  <FlexItem>
+                    <Content component="p" className="pf-v6-u-mb-0">
+                      Sort by
+                    </Content>
+                  </FlexItem>
+                  <FlexItem>
+                    <Select
+                      isOpen={isSortOpen}
+                      selected={sortOption}
+                      onSelect={(_event, value) => {
+                        if (isCollectionSortOption(value)) {
+                          setSortOption(value);
+                        }
+                        setIsSortOpen(false);
+                      }}
+                      onOpenChange={setIsSortOpen}
+                      toggle={(toggleRef) => (
+                        <MenuToggle
+                          ref={toggleRef}
+                          onClick={() => setIsSortOpen((previous) => !previous)}
+                          isExpanded={isSortOpen}
+                          data-testid="benchmark-suites-sort-toggle"
+                        >
+                          {collectionSortLabels[sortOption]}
+                        </MenuToggle>
+                      )}
+                      data-testid="benchmark-suites-sort-select"
+                    >
+                      <SelectList>
+                        {Object.values(CollectionSortOption).map((option) => (
+                          <SelectOption
+                            key={option}
+                            value={option}
+                            isSelected={sortOption === option}
+                            data-testid={`benchmark-suites-sort-option-${option}`}
+                          >
+                            {collectionSortLabels[option]}
+                          </SelectOption>
+                        ))}
+                      </SelectList>
+                    </Select>
+                  </FlexItem>
+                </Flex>
+              </ToolbarItem>
+            )}
             {showPagination && showPaginationControls && (
               <ToolbarItem align={{ default: 'alignEnd' }} variant="pagination">
                 <Pagination
@@ -1326,17 +1333,6 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
             className="evalhub-benchmark-suite-gallery"
             data-testid="benchmark-suites-gallery"
           >
-            {showCreateSuiteCard && (
-              <GalleryItem>
-                <CreateBenchmarkSuiteCard
-                  createSuiteRoute={createSuiteRoute}
-                  createSuiteRouteState={createSuiteRouteState}
-                  onImport={onImportCollection}
-                  importDisabled={importDisabled}
-                  onCreateSuite={onCreateSuite}
-                />
-              </GalleryItem>
-            )}
             {Array.from({ length: loadingCardCount }, (_, index) => (
               <GalleryItem key={`loading-card-${index}`}>
                 <BenchmarkSuiteCardSkeleton />
@@ -1349,16 +1345,20 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
       // nothing once the fetch has settled, so a stale page cannot flash the empty state.
       (showFilters || showPagination) && filteredCollections.length === 0 && !isFetching ? (
         <Bullseye data-testid="benchmark-suites-empty-state">
-          <EmptyState variant={EmptyStateVariant.sm} icon={SearchIcon}>
-            <Title headingLevel="h2" size="lg">
-              No collections found
-            </Title>
-            <EmptyStateBody>
-              {hasActiveFilters
-                ? 'No collections match the current filters.'
-                : 'No collections are available.'}
-            </EmptyStateBody>
-          </EmptyState>
+          {!hasActiveFilters && emptyState ? (
+            emptyState
+          ) : (
+            <EmptyState variant={EmptyStateVariant.sm} icon={SearchIcon}>
+              <Title headingLevel="h2" size="lg">
+                No collections found
+              </Title>
+              <EmptyStateBody>
+                {hasActiveFilters
+                  ? 'No collections match the current filters.'
+                  : 'No collections are available.'}
+              </EmptyStateBody>
+            </EmptyState>
+          )}
         </Bullseye>
       ) : (
         <div className="evalhub-benchmark-suite-gallery__container">
@@ -1367,18 +1367,6 @@ const BenchmarkSuitesGallery: React.FC<BenchmarkSuitesGalleryProps> = ({
             className="evalhub-benchmark-suite-gallery"
             data-testid="benchmark-suites-gallery"
           >
-            {showCreateSuiteCard && (
-              <GalleryItem>
-                <CreateBenchmarkSuiteCard
-                  createSuiteRoute={createSuiteRoute}
-                  createSuiteRouteState={createSuiteRouteState}
-                  trackingSurface={trackingSurface}
-                  onImport={onImportCollection}
-                  importDisabled={importDisabled}
-                  onCreateSuite={onCreateSuite}
-                />
-              </GalleryItem>
-            )}
             {visibleCollections.map((collection) => {
               const curatedConfig = !collection.resource.tenant
                 ? getCuratedCollectionConfig(collection)

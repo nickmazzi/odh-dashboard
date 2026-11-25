@@ -27,8 +27,28 @@ class EvaluationsPage {
     return cy.findByTestId('evaluate-tab-content', options);
   }
 
-  findBrowseAllBenchmarksExplore(options?: Partial<Cypress.Timeoutable>) {
-    return cy.findByTestId('browse-all-benchmarks-explore', options);
+  findIndividualBenchmarksTab(options?: Partial<Cypress.Timeoutable>) {
+    return cy.findByTestId('individual-benchmarks-tab', options);
+  }
+
+  findIndividualBenchmarksTabContent(options?: Partial<Cypress.Timeoutable>) {
+    return cy.findByTestId('individual-benchmarks-tab-content', options);
+  }
+
+  findIndividualBenchmarkCardTitleRegion(
+    providerId: string,
+    benchmarkId: string,
+    options?: Partial<Cypress.Timeoutable>,
+  ) {
+    return cy.findByTestId(`benchmark-card-title-region-${providerId}-${benchmarkId}`, options);
+  }
+
+  findBenchmarkDrawerPanel(options?: Partial<Cypress.Timeoutable>) {
+    return cy.findByTestId('benchmark-drawer-panel', options);
+  }
+
+  findBenchmarkDrawerPrimaryAction(options?: Partial<Cypress.Timeoutable>) {
+    return this.findBenchmarkDrawerPanel(options).findByTestId('select-benchmark-button', options);
   }
 
   findBenchmarkSuitesGallery(options?: Partial<Cypress.Timeoutable>) {

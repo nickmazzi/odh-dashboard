@@ -22,10 +22,6 @@ export const evaluationGalleryNavigationState = { source: 'gallery' } as const;
 
 export const evaluationEvaluateNavigationState = { source: 'evaluate' } as const;
 
-export const evaluationBenchmarkSuitesNavigationState = {
-  source: 'benchmark-suites',
-} as const;
-
 export const evaluationCollectionSelectionNavigationState = {
   source: 'collection-selection',
 } as const;

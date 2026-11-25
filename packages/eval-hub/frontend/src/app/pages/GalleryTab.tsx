@@ -1,13 +1,9 @@
 import * as React from 'react';
-import { Stack } from '@patternfly/react-core';
+import { Content, Stack, StackItem } from '@patternfly/react-core';
 import { useNavigate } from 'react-router-dom';
 import BenchmarkSuitesGallery from '~/app/components/BenchmarkSuitesGallery';
 import CuratedSuiteRunModal from '~/app/components/CuratedSuiteRunModal';
-import {
-  evaluationCopySuiteRoute,
-  evaluationCreateSuiteRoute,
-  evaluationGalleryNavigationState,
-} from '~/app/routes';
+import { evaluationCopySuiteRoute, evaluationGalleryNavigationState } from '~/app/routes';
 import type { BenchmarkNameMap } from '~/app/components/benchmarkUtils';
 import type { Collection } from '~/app/types';
 import { useEvalHubTracking } from '~/app/tracking/useEvalHubTracking';
@@ -30,12 +26,6 @@ const GalleryTab: React.FC<GalleryTabProps> = ({
 
   const navigate = useNavigate();
   const [collectionToRun, setCollectionToRun] = React.useState<Collection | undefined>();
-
-  const handleCreateSuite = React.useCallback(() => {
-    navigate(evaluationCreateSuiteRoute(namespace), {
-      state: evaluationGalleryNavigationState,
-    });
-  }, [navigate, namespace]);
 
   const trackCustomizeCollection = React.useCallback(
     (collection: Collection) => {
@@ -78,6 +68,16 @@ const GalleryTab: React.FC<GalleryTabProps> = ({
       className="evalhub-evaluations-tab-content evalhub-gallery-tab"
       data-testid="gallery-tab-content"
     >
+      <StackItem>
+        <Content
+          component="p"
+          className="evalhub-gallery-tab__description"
+          data-testid="gallery-tab-description"
+        >
+          Browse and run benchmark collections curated by Red Hat. Collections that you run are
+          saved to the Custom collections tab for easy access.
+        </Content>
+      </StackItem>
       <BenchmarkSuitesGallery
         namespace={namespace}
         benchmarkNameMap={benchmarkNameMap}
@@ -91,23 +91,19 @@ const GalleryTab: React.FC<GalleryTabProps> = ({
         showPagination
         // TEMP: Show the full first-release gallery. Re-enable the controls once the gallery grows.
         showPaginationControls={false}
-        showCreateSuiteCard={false}
         showContextualActions={false}
         trackingSurface="collection_gallery"
         primaryActionLabel="Run"
         primaryActionVariant="secondary"
         dropdownActionLabel="Customize"
-        createSuiteRouteState={evaluationGalleryNavigationState}
         dropdownActionRoute={(collection) =>
           evaluationCopySuiteRoute(namespace, collection.resource.id)
         }
         dropdownActionState={evaluationGalleryNavigationState}
-        onCreateSuite={handleCreateSuite}
         onPrimaryAction={handleRunCollection}
         onDropdownAction={trackCustomizeCollection}
         onDuplicateCollection={handleCustomizeCollection}
         onSelectCollection={onSelectCollection}
-        createSuiteRoute={evaluationCreateSuiteRoute(namespace)}
       />
       {collectionToRun ? (
         <CuratedSuiteRunModal

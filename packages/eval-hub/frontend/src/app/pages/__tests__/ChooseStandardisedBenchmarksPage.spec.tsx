@@ -90,7 +90,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
 
   it('should render the filter input with correct placeholder', () => {
     renderPage();
-    expect(screen.getByPlaceholderText('Filter by name or ID')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search benchmarks')).toBeInTheDocument();
   });
 
   it('should not render the evaluation type breadcrumb', () => {
@@ -171,7 +171,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
 
   it('should filter benchmarks by name', () => {
     renderPage();
-    fireEvent.change(screen.getByPlaceholderText('Filter by name or ID'), {
+    fireEvent.change(screen.getByPlaceholderText('Search benchmarks'), {
       target: { value: 'TruthfulQA' },
     });
     expect(
@@ -187,7 +187,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
 
   it('should filter benchmarks by ID', () => {
     renderPage();
-    fireEvent.change(screen.getByPlaceholderText('Filter by name or ID'), {
+    fireEvent.change(screen.getByPlaceholderText('Search benchmarks'), {
       target: { value: 'arc_easy' },
     });
     expect(screen.getByTestId('benchmark-card-lm_evaluation_harness-arc_easy')).toBeInTheDocument();
@@ -201,7 +201,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
 
   it('should match benchmarks by partial ID', () => {
     renderPage();
-    fireEvent.change(screen.getByPlaceholderText('Filter by name or ID'), {
+    fireEvent.change(screen.getByPlaceholderText('Search benchmarks'), {
       target: { value: 'inspect/' },
     });
     expect(
@@ -218,7 +218,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
   it('should match benchmarks by name or ID when input matches both', () => {
     renderPage();
     // 'arc' matches the name "ARC" and the IDs "arc_easy" and "inspect/arc"
-    fireEvent.change(screen.getByPlaceholderText('Filter by name or ID'), {
+    fireEvent.change(screen.getByPlaceholderText('Search benchmarks'), {
       target: { value: 'arc' },
     });
     expect(screen.getByTestId('benchmark-card-lm_evaluation_harness-arc_easy')).toBeInTheDocument();
@@ -232,7 +232,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
 
   it('should show chip label as "Name or ID" when filter is active', () => {
     renderPage();
-    fireEvent.change(screen.getByPlaceholderText('Filter by name or ID'), {
+    fireEvent.change(screen.getByPlaceholderText('Search benchmarks'), {
       target: { value: 'arc' },
     });
     expect(screen.getByText('Name or ID')).toBeInTheDocument();
@@ -240,7 +240,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
 
   it('should show no results message when filter matches nothing', () => {
     renderPage();
-    fireEvent.change(screen.getByPlaceholderText('Filter by name or ID'), {
+    fireEvent.change(screen.getByPlaceholderText('Search benchmarks'), {
       target: { value: 'zzznomatch' },
     });
     expect(screen.queryByText('Basic science Q&A')).not.toBeInTheDocument();
@@ -255,7 +255,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
 
   it('should filter benchmarks by ID case-insensitively', () => {
     renderPage();
-    fireEvent.change(screen.getByPlaceholderText('Filter by name or ID'), {
+    fireEvent.change(screen.getByPlaceholderText('Search benchmarks'), {
       target: { value: 'ARC_EASY' },
     });
     expect(screen.getByTestId('benchmark-card-lm_evaluation_harness-arc_easy')).toBeInTheDocument();
@@ -269,7 +269,7 @@ describe('ChooseStandardisedBenchmarksPage', () => {
 
   it('should restore all benchmarks after removing the name/ID filter chip', () => {
     renderPage();
-    fireEvent.change(screen.getByPlaceholderText('Filter by name or ID'), {
+    fireEvent.change(screen.getByPlaceholderText('Search benchmarks'), {
       target: { value: 'arc_easy' },
     });
     expect(
@@ -287,14 +287,15 @@ describe('ChooseStandardisedBenchmarksPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('should show a loading spinner while providers are loading', () => {
+  it('should show benchmark card skeletons while providers are loading', () => {
     mockUseProviders.mockReturnValue({
       providers: [],
       loaded: false,
       loadError: undefined,
     });
     renderPage();
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('Filter by name or ID')).not.toBeInTheDocument();
+    expect(screen.getByTestId('benchmarks-loading')).toBeInTheDocument();
+    expect(screen.getAllByTestId('benchmark-card-loading')).toHaveLength(6);
+    expect(screen.queryByPlaceholderText('Search benchmarks')).not.toBeInTheDocument();
   });
 });

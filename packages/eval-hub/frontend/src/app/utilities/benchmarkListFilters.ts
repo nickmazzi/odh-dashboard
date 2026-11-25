@@ -1,6 +1,7 @@
 import {
   BenchmarkFilterDataType,
   BenchmarkFilterOptions,
+  BenchmarkCatalogSortOption,
   BenchmarkSortOption,
 } from '~/app/pages/const';
 
@@ -15,9 +16,15 @@ export type BenchmarkFilterable = {
 };
 
 export const BENCHMARK_SORT_VALUES: readonly string[] = Object.values(BenchmarkSortOption);
+export const BENCHMARK_CATALOG_SORT_VALUES: readonly string[] = Object.values(
+  BenchmarkCatalogSortOption,
+);
 
 export const isBenchmarkSortOption = (value: unknown): value is BenchmarkSortOption =>
   typeof value === 'string' && BENCHMARK_SORT_VALUES.includes(value);
+
+export const isBenchmarkCatalogSortOption = (value: unknown): value is BenchmarkCatalogSortOption =>
+  typeof value === 'string' && BENCHMARK_CATALOG_SORT_VALUES.includes(value);
 
 export const getAvailableCategories = (benchmarks: BenchmarkFilterable[]): string[] =>
   // eslint-disable-next-line no-restricted-properties
@@ -103,6 +110,13 @@ export const filterBenchmarks = <T extends BenchmarkFilterable>(
   });
 };
 
+const compareBenchmarksByCategory = (a: BenchmarkFilterable, b: BenchmarkFilterable): number => {
+  const catCmp = (a.category ?? '').localeCompare(b.category ?? '', undefined, {
+    sensitivity: 'base',
+  });
+  return catCmp !== 0 ? catCmp : compareBenchmarkNames(a, b);
+};
+
 export const sortBenchmarks = <T extends BenchmarkFilterable>(
   benchmarks: T[],
   sortOption: BenchmarkSortOption,
@@ -113,13 +127,26 @@ export const sortBenchmarks = <T extends BenchmarkFilterable>(
       return sortBenchmarksByName(benchmarks);
     case BenchmarkSortOption.CATEGORY:
       // eslint-disable-next-line no-restricted-properties
-      return [...benchmarks].sort((a, b) => {
-        const catCmp = (a.category ?? '').localeCompare(b.category ?? '', undefined, {
-          sensitivity: 'base',
-        });
-        return catCmp !== 0 ? catCmp : compareBenchmarkNames(a, b);
-      });
+      return [...benchmarks].sort(compareBenchmarksByCategory);
     default:
       return benchmarks;
   }
+};
+
+/**
+ * Sorts the individual benchmark catalog. Name and category each support both
+ * directions; category comparisons fall back to name within a category.
+ */
+export const sortBenchmarksByCatalogOption = <T extends BenchmarkFilterable>(
+  benchmarks: T[],
+  sortOption: BenchmarkCatalogSortOption,
+): T[] => {
+  const comparator =
+    sortOption === BenchmarkCatalogSortOption.CATEGORY_ASC ||
+    sortOption === BenchmarkCatalogSortOption.CATEGORY_DESC
+      ? compareBenchmarksByCategory
+      : compareBenchmarksByName;
+  // eslint-disable-next-line no-restricted-properties
+  const sorted = [...benchmarks].sort(comparator);
+  return sortOption.endsWith('_desc') ? sorted.reverse() : sorted;
 };

@@ -1,5 +1,5 @@
 class EvaluationsPage {
-  visit(namespace: string, tab?: 'gallery' | 'evaluate' | 'runs') {
+  visit(namespace: string, tab?: 'gallery' | 'evaluate' | 'individual-benchmarks' | 'runs') {
     cy.visit(`/evaluation/${namespace}${tab ? `?tab=${tab}` : ''}`);
     this.waitForLoad(tab ?? 'gallery');
   }
@@ -12,19 +12,20 @@ class EvaluationsPage {
     this.visit(namespace, 'evaluate');
   }
 
+  visitIndividualBenchmarks(namespace: string) {
+    this.visit(namespace, 'individual-benchmarks');
+  }
+
   visitRuns(namespace: string) {
     this.visit(namespace, 'runs');
   }
 
   visitBenchmarkSuites(namespace: string) {
+    this.visitEvaluate(namespace);
+  }
+
+  visitLegacyBenchmarkSuites(namespace: string) {
     cy.visit(`/evaluation/${namespace}/collections`);
-    this.waitForPageHeader();
-    cy.get(
-      '[data-testid="benchmark-suites-gallery"], [data-testid="benchmark-suites-empty-state"], [data-testid="benchmark-suites-load-error"]',
-    )
-      .filter(':visible')
-      .should('have.length.at.least', 1);
-    cy.testA11y();
   }
 
   visitInvalidProject(namespace: string) {
@@ -45,7 +46,7 @@ class EvaluationsPage {
     cy.visit('/evaluation');
   }
 
-  private waitForLoad(tab: 'gallery' | 'evaluate' | 'runs') {
+  private waitForLoad(tab: 'gallery' | 'evaluate' | 'individual-benchmarks' | 'runs') {
     this.waitForPageHeader();
     cy.wait('@evalHubHealth').then((interception) => {
       const responseBody = interception.response?.body as {
@@ -91,12 +92,80 @@ class EvaluationsPage {
     return cy.findByTestId('gallery-tab-content');
   }
 
+  findGalleryDescription() {
+    return cy.findByTestId('gallery-tab-description');
+  }
+
+  findIndividualBenchmarksTab() {
+    return cy.findByTestId('individual-benchmarks-tab');
+  }
+
+  findIndividualBenchmarksContent() {
+    return cy.findByTestId('individual-benchmarks-tab-content');
+  }
+
+  findIndividualBenchmarksDescription() {
+    return cy.findByTestId('individual-benchmarks-description');
+  }
+
+  findIndividualBenchmarkCard(providerId: string, benchmarkId: string) {
+    return cy.findByTestId(`benchmark-card-${providerId}-${benchmarkId}`);
+  }
+
+  findBenchmarkSearchInput() {
+    return cy.findByPlaceholderText('Search benchmarks');
+  }
+
+  findBenchmarkCategoryFilter() {
+    return cy.findByTestId('benchmarks-category-filter');
+  }
+
+  findBenchmarkFrameworkFilter() {
+    return cy.findByTestId('benchmarks-framework-filter');
+  }
+
+  findBenchmarkMetricsFilter() {
+    return cy.findByTestId('benchmarks-metrics-filter');
+  }
+
+  findBenchmarkSortToggle() {
+    return cy.findByTestId('benchmarks-sort-toggle');
+  }
+
+  findBenchmarkSortOption(option: string) {
+    return cy.findByTestId(`benchmarks-sort-option-${option}`);
+  }
+
+  findBenchmarkCards() {
+    return cy.get('[data-testid^="benchmark-card-test-provider-"]');
+  }
+
+  findIndividualBenchmarkCardTitleRegion(providerId: string, benchmarkId: string) {
+    return cy.findByTestId(`benchmark-card-title-region-${providerId}-${benchmarkId}`);
+  }
+
+  findBenchmarkDrawerPanel() {
+    return cy.findByTestId('benchmark-drawer-panel');
+  }
+
+  findBenchmarkDrawerPrimaryAction() {
+    return this.findBenchmarkDrawerPanel().findByTestId('select-benchmark-button');
+  }
+
+  findBenchmarkDrawerClose() {
+    return this.findBenchmarkDrawerPanel().findByTestId('benchmark-drawer-close-footer');
+  }
+
   findRunsTab() {
     return cy.findByTestId('runs-tab');
   }
 
   findEvaluateContent() {
     return cy.findByTestId('evaluate-tab-content');
+  }
+
+  findEvaluateDescription() {
+    return cy.findByTestId('custom-collections-tab-description');
   }
 
   findRunsContent() {
@@ -107,20 +176,12 @@ class EvaluationsPage {
     return cy.findByTestId('runs-tab-description');
   }
 
-  findCreateSuiteCard() {
-    return cy.findByTestId('create-suite-card');
-  }
-
   findCreateSuiteButton() {
     return cy.findByTestId('create-suite-button');
   }
 
   findImportCollectionButton() {
     return cy.findByTestId('import-collection-button');
-  }
-
-  findBrowseAllBenchmarksExploreButton() {
-    return cy.findByTestId('browse-all-benchmarks-explore');
   }
 
   findBenchmarkSuiteCard(collectionId: string) {
@@ -247,6 +308,24 @@ class EvaluationsPage {
     return cy.findByTestId('benchmark-suites-pagination-top');
   }
 
+  findBenchmarkSuitesSortToggle() {
+    return cy.findByTestId('benchmark-suites-sort-toggle');
+  }
+
+  findBenchmarkSuitesSortOption(
+    value: 'date_created_desc' | 'date_created_asc' | 'name_asc' | 'name_desc',
+  ) {
+    return cy.findByTestId(`benchmark-suites-sort-option-${value}`);
+  }
+
+  findBenchmarkSuiteCardNames() {
+    return cy.get('[data-testid^="benchmark-suite-card-name-"]');
+  }
+
+  findBenchmarkSuitesFilterToolbar() {
+    return cy.findByTestId('benchmark-suites-filter-toolbar');
+  }
+
   findBenchmarkSuitesFilterOption(
     filter: 'category' | 'evaluates' | 'industry' | 'tags' | 'task' | 'modality',
     value: string,
@@ -254,10 +333,6 @@ class EvaluationsPage {
     return cy
       .findByTestId(`benchmark-suites-${filter}-filter-select`)
       .findByTestId(`benchmark-suites-${filter}-filter-option-${value}`);
-  }
-
-  findBenchmarkSuitesViewAllButton() {
-    return cy.findByTestId('benchmark-suites-view-all');
   }
 
   // TEMP: The curated suite categories section is hidden from the Evaluate tab until EvalHub
@@ -279,8 +354,36 @@ class EvaluationsPage {
     return cy.findByTestId('eval-hub-empty-state-body');
   }
 
-  findCreateEvaluationButton() {
-    return cy.findByTestId('create-evaluation-button');
+  findEmptyStatePrimaryAction() {
+    return cy.findByTestId('view-gallery-button');
+  }
+
+  findEmptyStateCreateCollectionButton() {
+    return cy.findByTestId('empty-state-create-collection-button');
+  }
+
+  findEmptyStateImportCollectionButton() {
+    return cy.findByTestId('empty-state-import-collection-button');
+  }
+
+  findCollectionsEmptyState() {
+    return cy.findByTestId('eval-hub-collections-empty-state');
+  }
+
+  findCollectionsEmptyStateBody() {
+    return cy.findByTestId('eval-hub-collections-empty-state-body');
+  }
+
+  findCollectionsEmptyStatePrimaryAction() {
+    return cy.findByTestId('collections-empty-state-primary-action');
+  }
+
+  findCollectionsEmptyStateCreateButton() {
+    return cy.findByTestId('collections-empty-state-create-button');
+  }
+
+  findCollectionsEmptyStateImportButton() {
+    return cy.findByTestId('collections-empty-state-import-button');
   }
 
   findEvaluationsTable() {

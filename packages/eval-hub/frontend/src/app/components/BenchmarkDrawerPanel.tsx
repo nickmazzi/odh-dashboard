@@ -16,7 +16,7 @@ import {
 } from '@patternfly/react-core';
 import { FlatBenchmark } from '~/app/types';
 import BenchmarkDrawerTileContent from './BenchmarkDrawerTileContent';
-import { capitalizeFirst, getCategoryColor } from './benchmarkUtils';
+import { formatCategory, getCategoryColor } from './benchmarkUtils';
 
 type BenchmarkDrawerPanelProps = {
   benchmark: FlatBenchmark | undefined;
@@ -67,7 +67,7 @@ const BenchmarkDrawerPanel: React.FC<BenchmarkDrawerPanelProps> = ({
         <Stack hasGutter>
           {benchmark.category && (
             <StackItem>
-              <Label color={color}>{capitalizeFirst(benchmark.category)}</Label>
+              <Label color={color}>{formatCategory(benchmark.category)}</Label>
             </StackItem>
           )}
           <StackItem>

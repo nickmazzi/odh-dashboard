@@ -19,9 +19,7 @@ import { useFetchState, FetchStateCallbackPromise, NotReadyError } from 'mod-arc
 import { ApplicationsPage } from '@odh-dashboard/ui-core';
 import { getCollection } from '~/app/api/k8s';
 import {
-  evaluationBenchmarkSuitesNavigationState,
   evaluationCollectionSelectionNavigationState,
-  evaluationBenchmarkSuitesRoute,
   evaluationCollectionsRoute,
   evaluationCuratedBenchmarkSuitesRoute,
   evaluationEvaluateNavigationState,
@@ -106,11 +104,6 @@ const SuiteEditorPage: React.FC<SuiteEditorPageProps> = ({ mode }) => {
     typeof navigationState === 'object' &&
     'source' in navigationState &&
     navigationState.source === 'gallery';
-  const isBenchmarkSuitesOrigin =
-    navigationState &&
-    typeof navigationState === 'object' &&
-    'source' in navigationState &&
-    navigationState.source === evaluationBenchmarkSuitesNavigationState.source;
   const isCollectionSelectionOrigin =
     navigationState &&
     typeof navigationState === 'object' &&
@@ -127,7 +120,6 @@ const SuiteEditorPage: React.FC<SuiteEditorPageProps> = ({ mode }) => {
   const hasExplicitOrigin =
     isEvaluateOrigin ||
     isGalleryOrigin ||
-    isBenchmarkSuitesOrigin ||
     isCollectionSelectionOrigin ||
     navigationEvaluationTarget !== undefined;
   const sourceEvaluationTarget: CuratedEvaluationTarget | undefined = hasExplicitOrigin
@@ -137,11 +129,9 @@ const SuiteEditorPage: React.FC<SuiteEditorPageProps> = ({ mode }) => {
     ? evaluationCollectionsRoute(namespace)
     : isGalleryOrigin
       ? evaluationGalleryRoute(namespace)
-      : isBenchmarkSuitesOrigin
-        ? evaluationBenchmarkSuitesRoute(namespace)
-        : sourceEvaluationTarget
-          ? evaluationCuratedBenchmarkSuitesRoute(namespace, sourceEvaluationTarget)
-          : evaluationEvaluateRoute(namespace);
+      : sourceEvaluationTarget
+        ? evaluationCuratedBenchmarkSuitesRoute(namespace, sourceEvaluationTarget)
+        : evaluationEvaluateRoute(namespace);
 
   const {
     providers,
@@ -278,29 +268,6 @@ const SuiteEditorPage: React.FC<SuiteEditorPageProps> = ({ mode }) => {
         }
       />,
     );
-  } else if (isBenchmarkSuitesOrigin) {
-    breadcrumbItems.push(
-      <BreadcrumbItem
-        key="benchmarkSuites"
-        render={() =>
-          renderBreadcrumbLink(
-            evaluationEvaluateRoute(namespace),
-            'Benchmark collections',
-            'copy-suite-breadcrumb-benchmark-suites',
-          )
-        }
-      />,
-      <BreadcrumbItem
-        key="myBenchmarkSuites"
-        render={() =>
-          renderBreadcrumbLink(
-            evaluationBenchmarkSuitesRoute(namespace),
-            'My benchmark collections',
-            'copy-suite-breadcrumb-my-benchmark-suites',
-          )
-        }
-      />,
-    );
   } else if (curatedSuitePage && sourceEvaluationTarget) {
     breadcrumbItems.push(
       <BreadcrumbItem
@@ -321,7 +288,7 @@ const SuiteEditorPage: React.FC<SuiteEditorPageProps> = ({ mode }) => {
         render={() =>
           renderBreadcrumbLink(
             evaluationEvaluateRoute(namespace),
-            'Benchmark collections',
+            'Custom collections',
             'copy-suite-breadcrumb-benchmark-suites',
           )
         }

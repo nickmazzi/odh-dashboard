@@ -28,7 +28,7 @@ import type { Collection } from '~/app/types';
 import { useEvalHubTracking } from '~/app/tracking/useEvalHubTracking';
 import { EVAL_HUB_EVENTS } from '~/app/tracking/evalhubTrackingConstants';
 import { CURATED_SUITE_PAGE_CONFIG, isCuratedEvaluationTarget } from '~/app/curatedSuiteConfig';
-import './BenchmarkSuitesPage.scss';
+import './CuratedBenchmarkSuitesPage.scss';
 
 const CuratedBenchmarkSuitesPage: React.FC = () => {
   const { trackEvalHubEvent } = useEvalHubTracking();
@@ -175,7 +175,6 @@ const CuratedBenchmarkSuitesPage: React.FC = () => {
                     queryFilters={{ evaluationTargets: [evaluationTarget] }}
                     requireCuratedIndex
                     useMockFallback
-                    showCreateSuiteCard={false}
                     showFilters
                     showEvaluatesFilter={false}
                     showPagination
@@ -190,7 +189,6 @@ const CuratedBenchmarkSuitesPage: React.FC = () => {
                     dropdownActionState={evaluationCuratedBenchmarkSuitesNavigationState(
                       evaluationTarget,
                     )}
-                    onCreateSuite={handleCreateSuite}
                     onPrimaryAction={handleRunCollection}
                     onDropdownAction={trackCustomizeCollection}
                     onDuplicateCollection={handleCustomizeCollection}

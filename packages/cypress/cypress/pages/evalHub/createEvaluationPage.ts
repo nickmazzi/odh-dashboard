@@ -183,21 +183,6 @@ class CreateEvaluationPage {
     return cy.findByTestId('collections-name-filter');
   }
 
-  findBenchmarksGallery(options?: Partial<Cypress.Timeoutable>) {
-    return cy.findByTestId('benchmarks-gallery', options);
-  }
-
-  findBenchmarkCard(providerId: string, benchmarkId: string) {
-    return this.findBenchmarksGallery({ timeout: 30000 }).find(
-      `[data-testid="benchmark-card-${providerId}-${benchmarkId}"]`,
-      { timeout: 30000 },
-    );
-  }
-
-  findSelectBenchmarkButton() {
-    return cy.findByTestId('select-benchmark-button');
-  }
-
   findStartEvaluationForm(options?: Partial<Cypress.Timeoutable>) {
     return cy.findByTestId('start-evaluation-form', options);
   }

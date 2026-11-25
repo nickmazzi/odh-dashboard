@@ -11,7 +11,6 @@ import { useProviders } from '~/app/hooks/useProviders';
 import { useCopySuiteForm, type CopySuiteBenchmark } from '~/app/pages/useCopySuiteForm';
 import CopySuitePage, { CreateSuitePage, EditSuitePage } from '~/app/pages/CopySuitePage';
 import {
-  evaluationBenchmarkSuitesNavigationState,
   evaluationCollectionSelectionNavigationState,
   evaluationEvaluateNavigationState,
   evaluationGalleryNavigationState,
@@ -320,26 +319,6 @@ const renderGalleryOriginPage = () =>
     </MemoryRouter>,
   );
 
-const renderBenchmarkSuitesOriginPage = (collectionId = 'source-collection') =>
-  render(
-    <MemoryRouter
-      initialEntries={[
-        {
-          pathname: `/evaluation/test-namespace/create/collections/${collectionId}/copy`,
-          state: evaluationBenchmarkSuitesNavigationState,
-        },
-      ]}
-    >
-      <LocationDisplay />
-      <Routes>
-        <Route
-          path="/evaluation/:namespace/create/collections/:collectionId/copy"
-          element={<CopySuitePage />}
-        />
-      </Routes>
-    </MemoryRouter>,
-  );
-
 const renderCollectionSelectionOriginPage = () =>
   render(
     <MemoryRouter
@@ -360,12 +339,12 @@ const renderCollectionSelectionOriginPage = () =>
     </MemoryRouter>,
   );
 
-const renderEvaluateOriginPage = () =>
+const renderEvaluateOriginPage = (collectionId = 'source-collection') =>
   render(
     <MemoryRouter
       initialEntries={[
         {
-          pathname: '/evaluation/test-namespace/create/collections/source-collection/copy',
+          pathname: `/evaluation/test-namespace/create/collections/${collectionId}/copy`,
           state: evaluationEvaluateNavigationState,
         },
       ]}
@@ -451,7 +430,7 @@ describe('CopySuitePage', () => {
     expect(screen.getByTestId('copy-suite-description')).toHaveTextContent(
       'Create a benchmark collection',
     );
-    expect(screen.getByRole('link', { name: 'Benchmark collections' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Custom collections' })).toHaveAttribute(
       'href',
       '/evaluation/test-namespace?tab=evaluate',
     );
@@ -487,7 +466,7 @@ describe('CopySuitePage', () => {
 
     renderEvaluateOriginPage();
 
-    expect(screen.getByRole('link', { name: 'Benchmark collections' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Custom collections' })).toHaveAttribute(
       'href',
       '/evaluation/test-namespace?tab=evaluate',
     );
@@ -693,7 +672,7 @@ describe('CopySuitePage', () => {
     expect(screen.queryByTestId('copy-suite-prerequisite-alert')).not.toBeInTheDocument();
   });
 
-  it('should not show curated prerequisites when copying a tenant collection from benchmark suites', () => {
+  it('should not show curated prerequisites when copying a tenant collection from custom collections', () => {
     mockUseFetchState.mockReturnValue([
       {
         ...sourceCollection,
@@ -704,7 +683,7 @@ describe('CopySuitePage', () => {
       jest.fn(),
     ]);
 
-    renderBenchmarkSuitesOriginPage('trustworthiness-v1');
+    renderEvaluateOriginPage('trustworthiness-v1');
 
     expect(screen.getByTestId('copy-suite-step-settings')).toBeInTheDocument();
     expect(screen.queryByTestId('copy-suite-prerequisite-alert')).not.toBeInTheDocument();
@@ -754,34 +733,6 @@ describe('CopySuitePage', () => {
     );
   });
 
-  it('should show the tenant benchmark suites breadcrumb and return route when opened from there', () => {
-    mockUseFetchState.mockReturnValue([
-      {
-        ...sourceCollection,
-        // eslint-disable-next-line camelcase
-        evaluation_targets: ['model'],
-      },
-      true,
-      undefined,
-      jest.fn(),
-    ]);
-
-    renderBenchmarkSuitesOriginPage();
-
-    expect(screen.getByRole('link', { name: 'Benchmark collections' })).toHaveAttribute(
-      'href',
-      '/evaluation/test-namespace?tab=evaluate',
-    );
-    expect(screen.getByRole('link', { name: 'My benchmark collections' })).toHaveAttribute(
-      'href',
-      '/evaluation/test-namespace/collections',
-    );
-    expect(screen.queryByRole('link', { name: 'Model collections' })).not.toBeInTheDocument();
-    expect(mockUseCopySuiteForm).toHaveBeenCalledWith(
-      expect.objectContaining({ cancelRoute: '/evaluation/test-namespace/collections' }),
-    );
-  });
-
   it('should show the select collection breadcrumb and return route when opened from there', () => {
     mockUseFetchState.mockReturnValue([
       {
@@ -819,20 +770,6 @@ describe('CopySuitePage', () => {
     );
     expect(mockUseCopySuiteForm).toHaveBeenCalledWith(
       expect.objectContaining({ cancelRoute: '/evaluation/test-namespace?tab=gallery' }),
-    );
-  });
-
-  it('should preserve the tenant benchmark suites source when creating a suite', () => {
-    mockUseFetchState.mockReturnValue([undefined, true, undefined, jest.fn()]);
-
-    renderCreatePage(evaluationBenchmarkSuitesNavigationState);
-
-    expect(screen.getByRole('link', { name: 'My benchmark collections' })).toHaveAttribute(
-      'href',
-      '/evaluation/test-namespace/collections',
-    );
-    expect(mockUseCopySuiteForm).toHaveBeenCalledWith(
-      expect.objectContaining({ cancelRoute: '/evaluation/test-namespace/collections' }),
     );
   });
 

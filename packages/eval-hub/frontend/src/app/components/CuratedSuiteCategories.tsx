@@ -10,7 +10,7 @@ import { EVAL_HUB_EVENTS } from '~/app/tracking/evalhubTrackingConstants';
 import './CuratedSuiteCategories.scss';
 
 // TEMP: This component is not rendered anywhere until EvalHub supports more evaluation_targets.
-// Restore <CuratedSuiteCategories /> in EvaluateTab when support is added.
+// Restore <CuratedSuiteCategories /> in CustomCollectionsTab when support is added.
 
 type CuratedCategory = {
   id: string;

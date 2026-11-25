@@ -634,10 +634,8 @@ const verifySavedCollectionsVisible = (
   collectionNames: string[],
   navigationTimeout: Partial<Cypress.Timeoutable>,
 ): void => {
-  cy.location('pathname', navigationTimeout).should(
-    'eq',
-    `/evaluation/${evaluationTenantProject}/collections`,
-  );
+  cy.location('pathname', navigationTimeout).should('eq', `/evaluation/${evaluationTenantProject}`);
+  cy.url(navigationTimeout).should('include', 'tab=evaluate');
   navigateToEvaluationsPage(evaluationTenantProject);
   collectionNames.forEach((collectionName) => {
     evaluationsPage
@@ -957,25 +955,24 @@ export const submitSingleBenchmarkEvaluation = (opts: SingleBenchmarkEvaluationO
     additionalBenchmarkParams,
   } = opts;
 
-  cy.step('Open the benchmark gallery from the Evaluate tab');
+  cy.step('Open the individual benchmarks catalog from the Evaluations page');
   const navigationTimeout = { timeout: 120000 };
-  evaluationsPage
-    .findBrowseAllBenchmarksExplore(navigationTimeout)
-    .should('be.visible')
-    .and('have.attr', 'href');
-  // Re-query immediately before clicking because the Evaluate tab can re-render while its
-  // curated collection data finishes loading, detaching the original button subject.
-  evaluationsPage.findBrowseAllBenchmarksExplore(navigationTimeout).click();
-  cy.location('pathname', navigationTimeout).should('match', /\/create\/benchmarks$/);
-  createEvaluationPage.findBenchmarksGallery(navigationTimeout).should('be.visible');
+  evaluationsPage.findIndividualBenchmarksTab(navigationTimeout).should('be.visible').click();
+  evaluationsPage.findIndividualBenchmarksTabContent(navigationTimeout).should('be.visible');
+  cy.url(navigationTimeout).should('include', 'tab=individual-benchmarks');
 
   cy.step(`Select benchmark: ${benchmarkCardTitle}`);
-  createEvaluationPage
-    .findBenchmarkCard(benchmarkProviderId, benchmarkId)
+  evaluationsPage
+    .findIndividualBenchmarkCardTitleRegion(benchmarkProviderId, benchmarkId, navigationTimeout)
     .scrollIntoView()
-    .within(() => {
-      createEvaluationPage.findSelectBenchmarkButton().click();
-    });
+    .should('be.visible')
+    .click();
+  evaluationsPage.findBenchmarkDrawerPanel(navigationTimeout).should('be.visible');
+  evaluationsPage.findBenchmarkDrawerPrimaryAction(navigationTimeout).click();
+  cy.url(navigationTimeout).should('include', '/create/start');
+  cy.url(navigationTimeout).should('include', 'type=benchmark');
+  cy.url(navigationTimeout).should('include', `providerId=${benchmarkProviderId}`);
+  cy.url(navigationTimeout).should('include', `benchmarkId=${benchmarkId}`);
   createEvaluationPage.findStartEvaluationForm({ timeout: 120000 }).should('exist');
 
   selectNewMlflowExperiment(mlflowExperimentName);
@@ -1033,11 +1030,7 @@ export const createBenchmarkSuite = (opts: BenchmarkSuiteCreationOptions): void 
 
   cy.step(`Create benchmark collection: ${suiteName}`);
   const navigationTimeout = { timeout: 120000 };
-  evaluationsPage
-    .findCreateSuiteButton(navigationTimeout)
-    .should('be.visible')
-    .and('have.attr', 'href');
-  // Re-query before clicking because the gallery can replace the card while its data finishes loading.
+  evaluationsPage.findCreateSuiteButton(navigationTimeout).should('be.visible');
   evaluationsPage.findCreateSuiteButton(navigationTimeout).click();
   cy.location('pathname', navigationTimeout).should('match', /\/create\/collections\/new$/);
 
@@ -1093,7 +1086,8 @@ export const createBenchmarkSuite = (opts: BenchmarkSuiteCreationOptions): void 
 
   cy.step('Add the collection to my collections');
   createEvaluationPage.findCopySuiteSaveOnlyButton().should('be.enabled').click();
-  cy.location('pathname', { timeout: 120000 }).should('match', /\/evaluation\/[^/]+\/collections$/);
+  cy.location('pathname', { timeout: 120000 }).should('match', /\/evaluation\/[^/]+$/);
+  cy.url({ timeout: 120000 }).should('include', 'tab=evaluate');
 };
 
 type CollectionRunConfigurationOptions = Omit<BenchmarkSuiteEvaluationOptions, 'suiteName'> & {

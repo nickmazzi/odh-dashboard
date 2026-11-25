@@ -13,7 +13,7 @@ import {
   normalizeThreshold,
 } from '~/app/utilities/evaluationUtils';
 import { weightsToPercentages } from '~/app/utilities/weightDistributionUtils';
-import { evaluationBenchmarkSuitesRoute, evaluationsBaseRoute } from '~/app/routes';
+import { evaluationEvaluateRoute, evaluationsBaseRoute } from '~/app/routes';
 import { useNotification } from '~/app/hooks/useNotification';
 import { useCollectionsContext } from '~/app/context/CollectionsContext';
 import { hasCuratedIndex } from '~/app/components/BenchmarkSuitesGallery';
@@ -1271,7 +1271,7 @@ export function useCopySuiteForm({
           : `"${savedCollection.name}" has been added to your collections.`,
       );
       refreshCollections();
-      navigate(evaluationBenchmarkSuitesRoute(namespace));
+      navigate(evaluationEvaluateRoute(namespace));
     } catch (e) {
       if (controller && !controller.signal.aborted) {
         const message = e instanceof Error ? e.message : 'An unknown error occurred.';

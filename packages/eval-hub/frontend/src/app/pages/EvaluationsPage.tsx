@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
   Alert,
   Bullseye,
+  Button,
   Content,
   Drawer,
   DrawerContent,
@@ -19,6 +20,7 @@ import {
   Tab,
   Tabs,
   TabTitleText,
+  Tooltip,
 } from '@patternfly/react-core';
 import { CogIcon } from '@patternfly/react-icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -36,6 +38,7 @@ import {
 } from '~/app/utilities/evaluationUtils';
 import {
   evaluationCopySuiteRoute,
+  evaluationCreateSuiteRoute,
   evaluationEditSuiteRoute,
   evaluationEvaluateNavigationState,
   evaluationGalleryNavigationState,
@@ -48,27 +51,41 @@ import { useCollectionNameMap } from '~/app/hooks/useCollectionNameMap';
 import useUser from '~/app/hooks/useUser';
 import EvalHubHeader from '~/app/components/EvalHubHeader';
 import EvalHubProjectSelector from '~/app/components/EvalHubProjectSelector';
-import EvalHubEmptyState from '~/app/components/EvalHubEmptyState';
+import {
+  EvalHubCollectionsEmptyState,
+  EvalHubEmptyState,
+} from '~/app/components/EvalHubEmptyState';
 import usePageVisibility from '~/app/hooks/usePageVisibility';
 import EvaluationsTable from '~/app/components/EvaluationsTable';
 import CollectionDrawerPanel from '~/app/components/CollectionDrawerPanel';
+import BenchmarkDrawerPanel from '~/app/components/BenchmarkDrawerPanel';
 import StartEvaluationRunModal from '~/app/components/StartEvaluationRunModal';
 import CuratedSuiteRunModal from '~/app/components/CuratedSuiteRunModal';
-import type { Collection, EvaluationJob } from '~/app/types';
+import type { Collection, EvaluationJob, FlatBenchmark } from '~/app/types';
 import { useCollectionDrawer } from '~/app/hooks/useCollectionDrawer';
+import { useRunBenchmark } from '~/app/hooks/useRunBenchmark';
 import StopEvaluationModal from '~/app/components/StopEvaluationModal';
 import { useEvalHubTracking } from '~/app/tracking/useEvalHubTracking';
-import { EVAL_HUB_EVENTS } from '~/app/tracking/evalhubTrackingConstants';
-import EvaluateTab from './EvaluateTab';
+import {
+  EVAL_HUB_EVENTS,
+  type EvalHubCollectionSurface,
+} from '~/app/tracking/evalhubTrackingConstants';
+import { useCanImportCollections } from '~/app/hooks/collections';
+import CustomCollectionsTab from './CustomCollectionsTab';
 import GalleryTab from './GalleryTab';
+import IndividualBenchmarksTab from './IndividualBenchmarksTab';
 
 import './EvaluationsTabs.scss';
 
 const EvaluationStatusModal = React.lazy(() => import('~/app/components/EvaluationStatusModal'));
+// The import modal pulls in Monaco; load it only when the user opens Import.
+const ImportCollectionModal = React.lazy(() => import('~/app/components/ImportCollectionModal'));
 
 const GALLERY_TAB = 'gallery';
 const EVALUATE_TAB = 'evaluate';
+const INDIVIDUAL_BENCHMARKS_TAB = 'individual-benchmarks';
 const RUNS_TAB = 'runs';
+const TAB_KEYS = [GALLERY_TAB, EVALUATE_TAB, INDIVIDUAL_BENCHMARKS_TAB, RUNS_TAB];
 const TAB_QUERY_PARAM = 'tab';
 const EVALUATE_DESCRIPTION =
   'Evaluate models using curated benchmark collections. Start with a curated collection, customize it, or create your own. Add a collection to your project to use it in your evaluations.';
@@ -81,15 +98,33 @@ const EvaluationsPage: React.FC = () => {
   const { clusterAdmin } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get(TAB_QUERY_PARAM);
-  const activeTab = [GALLERY_TAB, EVALUATE_TAB, RUNS_TAB].includes(tabParam ?? '')
-    ? tabParam!
-    : GALLERY_TAB;
+  const activeTab = TAB_KEYS.includes(tabParam ?? '') ? tabParam! : GALLERY_TAB;
   const isRunsTab = activeTab === RUNS_TAB;
 
   // Pause list polling when the browser tab is backgrounded
   const isPollingEnabled = usePageVisibility();
 
   const { isHealthy, loaded: healthLoaded, error: healthError } = useEvalHubHealth(namespace);
+
+  const [isImportOpen, setIsImportOpen] = React.useState(false);
+  const canImportQuery = useCanImportCollections(namespace ?? '');
+  // Import is enabled only on an explicit allowed result: it stays disabled
+  // while the check is pending or has failed, so limited-access users are
+  // never offered a creation flow the upstream authorization rejects.
+  // isError also covers a failed refetch, where React Query keeps the last
+  // (possibly allowed) result.
+  const canImport = canImportQuery.data === true && !canImportQuery.isError;
+  const importDisabledTooltip = canImportQuery.isPending
+    ? 'Checking permission to create collections in this project...'
+    : canImportQuery.isError
+      ? 'Unable to verify permission to create collections in this project'
+      : 'You do not have permission to create collections in this project';
+  const isGalleryTab = activeTab === GALLERY_TAB;
+  const headerSurface: EvalHubCollectionSurface = isGalleryTab
+    ? 'collection_gallery'
+    : 'my_benchmark_suites';
+  // Never offer create/import entry points while the evaluation service is unavailable.
+  const showHeaderActions = healthLoaded && isHealthy;
 
   const [evaluationsResult, loaded, error, refreshEvaluations] = useEvaluationJobs(
     { namespace },
@@ -128,17 +163,35 @@ const EvaluationsPage: React.FC = () => {
     Collection | undefined
   >();
   const [selectedCollectionIsSystem, setSelectedCollectionIsSystem] = React.useState(false);
+  const [selectedBenchmark, setSelectedBenchmark] = React.useState<FlatBenchmark | undefined>();
+  const [drawerKind, setDrawerKind] = React.useState<'collection' | 'benchmark'>('collection');
+  const handleRunBenchmark = useRunBenchmark(namespace ?? '');
   const handleCloseDrawer = React.useCallback(() => {
     setSelectedCollectionIsSystem(false);
+    setSelectedBenchmark(undefined);
     closeDrawer();
   }, [closeDrawer]);
 
   const handleSelectCollection = React.useCallback(
     (collection: Collection, isSystemCollection = false) => {
+      setDrawerKind('collection');
+      setSelectedBenchmark(undefined);
       setSelectedCollectionIsSystem(isSystemCollection);
       return selectCollection(collection);
     },
     [selectCollection],
+  );
+
+  const handleSelectBenchmark = React.useCallback(
+    (benchmark: FlatBenchmark | undefined) => {
+      if (benchmark) {
+        setDrawerKind('benchmark');
+        setSelectedCollectionIsSystem(false);
+        closeDrawer();
+      }
+      setSelectedBenchmark(benchmark);
+    },
+    [closeDrawer],
   );
 
   const handleRunCollection = React.useCallback((collection: Collection) => {
@@ -227,6 +280,28 @@ const EvaluationsPage: React.FC = () => {
     [trackEvalHubEvent, navigate, namespace],
   );
 
+  const handleCreateCollection = React.useCallback(() => {
+    trackEvalHubEvent(EVAL_HUB_EVENTS.COLLECTION_CREATE_OPENED, { surface: headerSurface });
+    navigate(evaluationCreateSuiteRoute(namespace), {
+      state: isGalleryTab ? evaluationGalleryNavigationState : evaluationEvaluateNavigationState,
+    });
+  }, [trackEvalHubEvent, navigate, namespace, headerSurface, isGalleryTab]);
+
+  // Preserve the benchmark catalog signal that the removed Explore entry point emitted.
+  React.useEffect(() => {
+    if (activeTab === INDIVIDUAL_BENCHMARKS_TAB) {
+      trackEvalHubEvent(EVAL_HUB_EVENTS.BENCHMARK_CATALOG_OPENED, {
+        surface: 'my_benchmark_suites',
+      });
+    }
+  }, [activeTab, trackEvalHubEvent]);
+
+  const handleViewGallery = React.useCallback(() => {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set(TAB_QUERY_PARAM, GALLERY_TAB);
+    setSearchParams(nextSearchParams);
+  }, [searchParams, setSearchParams]);
+
   const handleRunSuccess = React.useCallback(async () => {
     setCollectionToRun(undefined);
     setCuratedCollectionToRun(undefined);
@@ -279,32 +354,43 @@ const EvaluationsPage: React.FC = () => {
   const onSelectTab = React.useCallback(
     (_event: React.MouseEvent, selectedTab: string | number) => {
       const nextTab = String(selectedTab);
-      if (nextTab === activeTab || ![GALLERY_TAB, EVALUATE_TAB, RUNS_TAB].includes(nextTab)) {
+      if (nextTab === activeTab || !TAB_KEYS.includes(nextTab)) {
         return;
+      }
+      if (nextTab !== INDIVIDUAL_BENCHMARKS_TAB && selectedBenchmark) {
+        setSelectedBenchmark(undefined);
       }
 
       const nextSearchParams = new URLSearchParams(searchParams);
       nextSearchParams.set(TAB_QUERY_PARAM, nextTab);
       setSearchParams(nextSearchParams);
     },
-    [activeTab, searchParams, setSearchParams],
+    [activeTab, searchParams, selectedBenchmark, setSearchParams],
   );
 
   return (
     <>
-      <Drawer isExpanded={!!selectedCollection}>
+      <Drawer isExpanded={!!selectedCollection || !!selectedBenchmark}>
         <DrawerContent
           className="evalhub-evaluations-drawer-content"
           panelContent={
-            <CollectionDrawerPanel
-              collection={selectedCollection}
-              benchmarkDetailsMap={benchmarkDetailsMap}
-              onClose={handleCloseDrawer}
-              onRunCollection={handleDrawerRunCollection}
-              onCustomizeCollection={handleDuplicateCollection}
-              isSystemCollection={selectedCollectionIsSystem}
-              primaryActionLabel="Run"
-            />
+            drawerKind === 'benchmark' ? (
+              <BenchmarkDrawerPanel
+                benchmark={selectedBenchmark}
+                onClose={handleCloseDrawer}
+                onRunBenchmark={handleRunBenchmark}
+              />
+            ) : (
+              <CollectionDrawerPanel
+                collection={selectedCollection}
+                benchmarkDetailsMap={benchmarkDetailsMap}
+                onClose={handleCloseDrawer}
+                onRunCollection={handleDrawerRunCollection}
+                onCustomizeCollection={handleDuplicateCollection}
+                isSystemCollection={selectedCollectionIsSystem}
+                primaryActionLabel="Run"
+              />
+            )
           }
         >
           <DrawerContentBody className="evalhub-evaluations-drawer-body">
@@ -330,6 +416,43 @@ const EvaluationsPage: React.FC = () => {
                   />
                 }
                 description={EVALUATE_DESCRIPTION}
+                headerAction={
+                  showHeaderActions ? (
+                    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+                      {canImport ? (
+                        <Button
+                          variant="secondary"
+                          onClick={() => setIsImportOpen(true)}
+                          data-testid="import-collection-button"
+                        >
+                          Import collection
+                        </Button>
+                      ) : (
+                        <Tooltip content={importDisabledTooltip}>
+                          {/* Span wrapper: hover events do not fire on a disabled button;
+                              tabIndex keeps the tooltip reachable by keyboard. */}
+                          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- focus proxy for the disabled button so keyboard users can reach the tooltip */}
+                          <span tabIndex={0}>
+                            <Button
+                              variant="secondary"
+                              isDisabled
+                              data-testid="import-collection-button"
+                            >
+                              Import collection
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      )}
+                      <Button
+                        variant="primary"
+                        onClick={handleCreateCollection}
+                        data-testid="create-suite-button"
+                      >
+                        Create collection
+                      </Button>
+                    </Flex>
+                  ) : undefined
+                }
                 loaded={healthLoaded && (!isHealthy || !isRunsTab || loaded)}
                 loadError={!isHealthy ? healthError : isRunsTab ? error : undefined}
                 loadErrorPage={
@@ -445,17 +568,38 @@ const EvaluationsPage: React.FC = () => {
                   </Tab>
                   <Tab
                     eventKey={EVALUATE_TAB}
-                    title={<TabTitleText>Benchmark collections</TabTitleText>}
-                    aria-label="Benchmark collections tab"
+                    title={<TabTitleText>Custom collections</TabTitleText>}
+                    aria-label="Custom collections tab"
                     data-testid="evaluate-tab"
                   >
-                    <EvaluateTab
+                    <CustomCollectionsTab
                       namespace={namespace ?? ''}
                       benchmarkNameMap={benchmarkNameMap}
+                      emptyState={
+                        <EvalHubCollectionsEmptyState
+                          onViewGallery={handleViewGallery}
+                          onCreateCollection={handleCreateCollection}
+                          onImportCollection={() => setIsImportOpen(true)}
+                          isImportDisabled={!canImport}
+                          importDisabledTooltip={importDisabledTooltip}
+                        />
+                      }
                       onSelectCollection={handleSelectCollection}
                       onRunCollection={handleRunCollection}
                       onEditCollection={handleEditCollection}
                       onDuplicateCollection={handleEvaluateDuplicateCollection}
+                    />
+                  </Tab>
+                  <Tab
+                    eventKey={INDIVIDUAL_BENCHMARKS_TAB}
+                    title={<TabTitleText>Individual benchmarks</TabTitleText>}
+                    aria-label="Individual benchmarks tab"
+                    data-testid="individual-benchmarks-tab"
+                  >
+                    <IndividualBenchmarksTab
+                      namespace={namespace ?? ''}
+                      selectedBenchmark={selectedBenchmark}
+                      onSelectBenchmark={handleSelectBenchmark}
                     />
                   </Tab>
                   <Tab
@@ -499,7 +643,13 @@ const EvaluationsPage: React.FC = () => {
                       )}
                       <StackItem>
                         {evaluations.length === 0 ? (
-                          <EvalHubEmptyState />
+                          <EvalHubEmptyState
+                            onViewGallery={handleViewGallery}
+                            onCreateCollection={handleCreateCollection}
+                            onImportCollection={() => setIsImportOpen(true)}
+                            isImportDisabled={!canImport}
+                            importDisabledTooltip={importDisabledTooltip}
+                          />
                         ) : (
                           <EvaluationsTable
                             evaluations={enrichedEvaluations}
@@ -552,6 +702,16 @@ const EvaluationsPage: React.FC = () => {
           onComplete={refreshEvaluations}
         />
       )}
+      {isImportOpen ? (
+        <React.Suspense fallback={null}>
+          <ImportCollectionModal
+            isOpen
+            onClose={() => setIsImportOpen(false)}
+            namespace={namespace ?? ''}
+            surface={headerSurface}
+          />
+        </React.Suspense>
+      ) : null}
       {collectionToRun ? (
         <StartEvaluationRunModal
           isOpen

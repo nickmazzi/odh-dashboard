@@ -3,6 +3,16 @@
   justify-content: start;
 }
 
+// The host felt theme turns controls into pills. The design uses PatternFly's
+// standard control radius (6px), so scope that token here. Buttons keep
+// their action-radius token.
+.evalhub-benchmark-suite-gallery__toolbar {
+  --pf-t--global--border--radius--control--default: var(--pf-t--global--border--radius--small);
+  --pf-t--global--border--radius--control--form-element: var(
+    --pf-t--global--border--radius--small
+  );
+}
+
 .evalhub-benchmark-suite-gallery__search-input {
   width: calc(var(--pf-t--global--spacer--xl) * 7);
 }

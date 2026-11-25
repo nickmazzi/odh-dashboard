@@ -1,12 +1,11 @@
 import * as React from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import NotFound from '@odh-dashboard/ui-core/components/NotFound';
 import { NavDataItem } from '~/app/standalone/types';
 import { evalHubEvaluationsRoute, evalHubRootPath } from './utilities/routes';
 import EvalHubCoreLoader from './components/EvalHubCoreLoader';
 import ToastNotifications from './components/ToastNotifications';
 import EvaluationsPage from './pages/EvaluationsPage';
-import BenchmarkSuitesPage from './pages/BenchmarkSuitesPage';
 import CuratedBenchmarkSuitesPage from './pages/CuratedBenchmarkSuitesPage';
 import NewEvaluationRunPage from './pages/NewEvaluationRunPage';
 import ChooseBenchmarkCollectionPage from './pages/ChooseBenchmarkCollectionPage';
@@ -18,6 +17,13 @@ import ChooseCompareBenchmarksPage from './pages/ChooseCompareBenchmarksPage';
 import { evaluationComparePathSegment } from './routeSegments';
 import EvaluationReconfigureLoader from './pages/EvaluationReconfigureLoader';
 import CopySuitePage, { CreateSuitePage, EditSuitePage } from './pages/CopySuitePage';
+import { evaluationEvaluateRoute } from './routes';
+
+/** `/collections` now lives on the Evaluations page as the Custom collections tab. */
+const LegacyBenchmarkSuitesRedirect: React.FC = () => {
+  const { namespace } = useParams<{ namespace: string }>();
+  return <Navigate replace to={evaluationEvaluateRoute(namespace)} />;
+};
 
 export const useNavData = (): NavDataItem[] => [
   {
@@ -36,7 +42,7 @@ const AppRoutes: React.FC = () => (
         element={<EvalHubCoreLoader getInvalidRedirectPath={evalHubEvaluationsRoute} />}
       >
         <Route path=":namespace" element={<EvaluationsPage />} />
-        <Route path=":namespace/collections" element={<BenchmarkSuitesPage />} />
+        <Route path=":namespace/collections" element={<LegacyBenchmarkSuitesRedirect />} />
         <Route
           path=":namespace/collections/:evaluationTarget"
           element={<CuratedBenchmarkSuitesPage />}

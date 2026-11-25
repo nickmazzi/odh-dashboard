@@ -151,7 +151,7 @@ describe('EvaluationsTable', () => {
   it('should not render a start evaluation button when runs exist', () => {
     renderTable({ evaluations: mockJobs, loaded: true });
 
-    expect(screen.queryByTestId('create-evaluation-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('view-gallery-button')).not.toBeInTheDocument();
   });
 
   it('should disable row checkboxes when evaluation is not completed', () => {

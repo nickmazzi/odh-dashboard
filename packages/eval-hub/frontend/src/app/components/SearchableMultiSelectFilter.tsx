@@ -15,7 +15,8 @@ import {
 
 type SearchableMultiSelectFilterProps = {
   categoryName: string;
-  icon?: React.ReactNode;
+  /** Toggle label when nothing is selected, e.g. "All metrics". */
+  emptyLabel?: string;
   isCompact?: boolean;
   options: string[];
   selected: string[];
@@ -31,7 +32,7 @@ type SearchableMultiSelectFilterProps = {
 
 const SearchableMultiSelectFilter: React.FC<SearchableMultiSelectFilterProps> = ({
   categoryName,
-  icon,
+  emptyLabel,
   isCompact = false,
   options,
   selected,
@@ -59,6 +60,7 @@ const SearchableMultiSelectFilter: React.FC<SearchableMultiSelectFilterProps> = 
   }, [options, search, formatLabel]);
 
   const labelClassName = isCompact ? 'pf-v6-u-display-none' : undefined;
+  const displayLabel = selected.length === 0 ? (emptyLabel ?? categoryName) : categoryName;
 
   return (
     <ToolbarFilter
@@ -92,7 +94,6 @@ const SearchableMultiSelectFilter: React.FC<SearchableMultiSelectFilterProps> = 
               isExpanded={isOpen}
               isDisabled={isDisabled}
               aria-label={categoryName}
-              icon={icon}
               data-testid={filterTestId}
               badge={
                 selected.length > 0 ? (
@@ -102,12 +103,12 @@ const SearchableMultiSelectFilter: React.FC<SearchableMultiSelectFilterProps> = 
                 ) : undefined
               }
             >
-              <span className={labelClassName}>{categoryName}</span>
+              <span className={labelClassName}>{displayLabel}</span>
             </MenuToggle>
           );
 
           return isCompact ? (
-            <Tooltip content={categoryName} position="top">
+            <Tooltip content={displayLabel} position="top">
               {menuToggle}
             </Tooltip>
           ) : (

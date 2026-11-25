@@ -1,4 +1,5 @@
 import {
+  BenchmarkCatalogSortOption,
   BenchmarkFilterOptions,
   BenchmarkSortOption,
   initialBenchmarkFilterData,
@@ -10,8 +11,10 @@ import {
   getAvailableFrameworks,
   getAvailableMetrics,
   hasActiveBenchmarkFilters,
+  isBenchmarkCatalogSortOption,
   isBenchmarkSortOption,
   sortBenchmarks,
+  sortBenchmarksByCatalogOption,
   sortBenchmarksByName,
   type BenchmarkFilterable,
 } from '~/app/utilities/benchmarkListFilters';
@@ -192,6 +195,34 @@ describe('sortBenchmarks', () => {
   });
 });
 
+describe('sortBenchmarksByCatalogOption', () => {
+  it('should sort by name in both directions', () => {
+    expect(
+      sortBenchmarksByCatalogOption(benchmarks, BenchmarkCatalogSortOption.NAME_ASC).map(
+        (b) => b.id,
+      ),
+    ).toEqual(['inspect/arc', 'arc_easy', 'truthfulqa_mc1']);
+    expect(
+      sortBenchmarksByCatalogOption(benchmarks, BenchmarkCatalogSortOption.NAME_DESC).map(
+        (b) => b.id,
+      ),
+    ).toEqual(['truthfulqa_mc1', 'arc_easy', 'inspect/arc']);
+  });
+
+  it('should sort by category then name in both directions', () => {
+    expect(
+      sortBenchmarksByCatalogOption(benchmarks, BenchmarkCatalogSortOption.CATEGORY_ASC).map(
+        (b) => b.id,
+      ),
+    ).toEqual(['truthfulqa_mc1', 'inspect/arc', 'arc_easy']);
+    expect(
+      sortBenchmarksByCatalogOption(benchmarks, BenchmarkCatalogSortOption.CATEGORY_DESC).map(
+        (b) => b.id,
+      ),
+    ).toEqual(['arc_easy', 'inspect/arc', 'truthfulqa_mc1']);
+  });
+});
+
 describe('getAvailableCategories', () => {
   it('should return sorted unique categories', () => {
     expect(getAvailableCategories(benchmarks)).toEqual(['Knowledge', 'Reasoning']);
@@ -235,5 +266,13 @@ describe('isBenchmarkSortOption', () => {
   it('should validate benchmark sort option values', () => {
     expect(isBenchmarkSortOption(BenchmarkSortOption.NAME)).toBe(true);
     expect(isBenchmarkSortOption('invalid')).toBe(false);
+  });
+});
+
+describe('isBenchmarkCatalogSortOption', () => {
+  it('should validate benchmark catalog sort option values', () => {
+    expect(isBenchmarkCatalogSortOption(BenchmarkCatalogSortOption.NAME_ASC)).toBe(true);
+    expect(isBenchmarkCatalogSortOption(BenchmarkCatalogSortOption.CATEGORY_DESC)).toBe(true);
+    expect(isBenchmarkCatalogSortOption('default')).toBe(false);
   });
 });

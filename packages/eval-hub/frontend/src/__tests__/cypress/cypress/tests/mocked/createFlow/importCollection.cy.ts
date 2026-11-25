@@ -73,7 +73,7 @@ describe('Import collection', () => {
     initIntercepts();
   });
 
-  it('should open the import dialog from the My benchmark collections page with the default template', () => {
+  it('should open the import dialog from the Custom collections tab with the default template', () => {
     evaluationsPage.visitBenchmarkSuites(NAMESPACE);
     evaluationsPage.findImportCollectionButton().should('be.enabled').click();
 
@@ -91,9 +91,9 @@ describe('Import collection', () => {
     importCollectionModal.findSubmitButton().should('be.enabled');
   });
 
-  it('should open the import dialog from the create tile on the Benchmark collections tab', () => {
+  it('should open the import dialog from the page header on the Custom collections tab', () => {
     evaluationsPage.visitEvaluate(NAMESPACE);
-    evaluationsPage.findCreateSuiteCard().should('exist');
+    evaluationsPage.findEvaluateContent().should('exist');
     evaluationsPage.findImportCollectionButton().click();
 
     importCollectionModal.shouldBeOpen();
@@ -189,7 +189,7 @@ describe('Import collection', () => {
     importCollectionModal.findSubmitButton().should('be.disabled');
   });
 
-  it('should submit the content from the collections page and stay on the collections page', () => {
+  it('should submit the content and stay on the Custom collections tab', () => {
     cy.intercept(
       {
         method: 'POST',
@@ -227,10 +227,11 @@ describe('Import collection', () => {
     importCollectionModal.shouldBeOpen(false);
     cy.findByTestId('import-collection-success').should('not.exist');
     evaluationsPage.findBenchmarkSuiteCard('imported-suite').should('exist');
-    cy.location('pathname').should('eq', `/evaluation/${NAMESPACE}/collections`);
+    cy.location('pathname').should('eq', `/evaluation/${NAMESPACE}`);
+    cy.location('search').should('eq', '?tab=evaluate');
   });
 
-  it('should navigate to the collections page from the evaluate tab on success', () => {
+  it('should return to the Custom collections tab on success', () => {
     cy.intercept(
       {
         method: 'POST',
@@ -253,7 +254,8 @@ describe('Import collection', () => {
 
     cy.wait('@importCollection');
     importCollectionModal.shouldBeOpen(false);
-    cy.location('pathname').should('eq', `/evaluation/${NAMESPACE}/collections`);
+    cy.location('pathname').should('eq', `/evaluation/${NAMESPACE}`);
+    cy.location('search').should('eq', '?tab=evaluate');
   });
 
   it('should lock the form while the import request is in flight', () => {

@@ -1,3 +1,38 @@
+.evalhub-benchmark-card {
+  --evalhub-benchmark-card-gradient-color: #d9e7f2;
+  --evalhub-benchmark-card-gradient-opacity: 50%;
+  --pf-v6-c-card--BackgroundColor: transparent;
+  background: linear-gradient(
+    to bottom,
+    var(--pf-t--global--background--color--primary--default),
+    var(--pf-t--global--background--color--primary--default) 60%,
+    color-mix(
+      in srgb,
+      var(--evalhub-benchmark-card-gradient-color) var(--evalhub-benchmark-card-gradient-opacity),
+      transparent
+    )
+  );
+}
+
+:root:where(.pf-v6-theme-dark) .evalhub-benchmark-card {
+  --evalhub-benchmark-card-gradient-color: var(--pf-t--color--blue--70);
+  --evalhub-benchmark-card-gradient-opacity: 15%;
+}
+
+.evalhub-benchmark-card--loading {
+  pointer-events: none;
+}
+
+.evalhub-benchmark-card__loading-subtitle {
+  margin-top: var(--pf-t--global--spacer--xs);
+}
+
+.evalhub-benchmark-card__loading-description {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-t--global--spacer--sm);
+}
+
 .evalhub-benchmark-card__subtitle {
   color: var(--pf-t--global--text--color--subtle);
   margin-top: var(--pf-t--global--spacer--xs);

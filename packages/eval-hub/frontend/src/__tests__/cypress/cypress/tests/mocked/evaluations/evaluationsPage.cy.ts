@@ -4,6 +4,8 @@ import { mockNamespace } from '~/__mocks__/mockNamespace';
 import { mockUserSettings } from '~/__mocks__/mockUserSettings';
 import { mockEvaluationJob } from '~/__mocks__/mockEvaluationJob';
 import { mockEvalHubHealth } from '~/__mocks__/mockEvalHubHealth';
+import { mockProvider } from '~/__mocks__/mockProvider';
+import { mockBenchmark } from '~/__mocks__/mockBenchmark';
 import {
   mockBenchmarkSuiteCollections,
   mockCollectionsListResponse,
@@ -66,6 +68,12 @@ const initIntercepts = ({
     { path: API_VERSION },
     mockCollectionsListResponse(collections, collectionsTotalCount),
   );
+
+  cy.interceptApi(
+    'GET /api/:apiVersion/evaluations/collection-imports/access',
+    { path: API_VERSION, query: { namespace: NAMESPACE } },
+    { allowed: true },
+  ).as('importAccess');
 };
 
 describe('Evaluations Page - Tabs', () => {
@@ -79,7 +87,6 @@ describe('Evaluations Page - Tabs', () => {
     evaluationsPage.visit(NAMESPACE);
     evaluationsPage.findGalleryTab().should('have.attr', 'aria-selected', 'true');
     evaluationsPage.findGalleryContent().should('exist');
-    evaluationsPage.findCreateSuiteCard().should('not.exist');
     evaluationsPage.findBenchmarkSuitesCategoryFilter().should('exist');
     evaluationsPage
       .findBenchmarkSuitesMoreFiltersToggle()
@@ -239,11 +246,163 @@ describe('Evaluations Page - Tabs', () => {
     evaluationsPage.findBenchmarkSuiteCard('curated-agent-safety-suite').should('exist');
   });
 
-  it('should navigate to the single benchmark flow from the browse benchmarks section', () => {
+  it('should render the individual benchmarks tab with the benchmark catalog', () => {
+    initIntercepts({
+      providers: [
+        mockProvider({
+          id: 'test-provider',
+          name: 'test-provider',
+          title: 'Test Provider',
+          benchmarks: [mockBenchmark({ id: 'bench-alpha', name: 'Alpha Bench' })],
+        }),
+      ],
+    });
+
     evaluationsPage.visitEvaluate(NAMESPACE);
-    evaluationsPage.findEvaluateTab().should('contain.text', 'Benchmark collections');
-    evaluationsPage.findBrowseAllBenchmarksExploreButton().click();
-    cy.url().should('include', `/evaluation/${NAMESPACE}/create/benchmarks`);
+    evaluationsPage.findEvaluateTab().should('contain.text', 'Custom collections');
+    evaluationsPage.findIndividualBenchmarksTab().click();
+
+    evaluationsPage.findIndividualBenchmarksTab().should('have.attr', 'aria-selected', 'true');
+    evaluationsPage.findIndividualBenchmarksContent().should('exist');
+    evaluationsPage
+      .findIndividualBenchmarksDescription()
+      .should('contain.text', 'Select a benchmark to run on your model, agent, or dataset.');
+    cy.findByTestId('benchmarks-filter-toolbar').should('exist');
+    cy.findByTestId('benchmark-card-test-provider-bench-alpha').should('exist');
+    cy.url().should('include', `?tab=individual-benchmarks`);
+  });
+
+  it('should render the benchmark catalog toolbar in design order with all-labels and sort options', () => {
+    initIntercepts({
+      providers: [
+        mockProvider({
+          id: 'test-provider',
+          name: 'test-provider',
+          title: 'Test Provider',
+          benchmarks: [
+            mockBenchmark({ id: 'bench-alpha', name: 'Alpha Bench' }),
+            mockBenchmark({ id: 'bench-beta', name: 'Beta Bench' }),
+          ],
+        }),
+      ],
+    });
+
+    evaluationsPage.visit(NAMESPACE);
+    evaluationsPage.findIndividualBenchmarksTab().click();
+
+    evaluationsPage.findBenchmarkSearchInput().should('be.visible');
+    evaluationsPage.findBenchmarkCategoryFilter().should('contain.text', 'All categories');
+    evaluationsPage.findBenchmarkFrameworkFilter().should('contain.text', 'All frameworks');
+    evaluationsPage.findBenchmarkMetricsFilter().should('contain.text', 'All metrics');
+    evaluationsPage.findBenchmarkSortToggle().should('contain.text', 'Name (A–Z)');
+    evaluationsPage.findBenchmarkCategoryFilter().should(($toggle) => {
+      // Match the design's standard PF control radius rather than the host theme's pill.
+      expect(getComputedStyle($toggle[0]).borderTopLeftRadius).to.eq('6px');
+    });
+    // Pagination wraps only when the toolbar row runs out of space.
+    cy.findByTestId('benchmarks-filter-toolbar')
+      .closest('.pf-v6-c-toolbar__content-section')
+      .findByTestId('benchmarks-pagination')
+      .should('exist');
+    evaluationsPage
+      .findBenchmarkCards()
+      .first()
+      .should('have.attr', 'data-testid', 'benchmark-card-test-provider-bench-alpha');
+
+    evaluationsPage.findBenchmarkSortToggle().click();
+    evaluationsPage.findBenchmarkSortOption('name_desc').should('contain.text', 'Name (Z–A)');
+    evaluationsPage
+      .findBenchmarkSortOption('category_asc')
+      .should('contain.text', 'Category (A–Z)');
+    evaluationsPage
+      .findBenchmarkSortOption('category_desc')
+      .should('contain.text', 'Category (Z–A)');
+    evaluationsPage.findBenchmarkSortOption('name_desc').click();
+    evaluationsPage.findBenchmarkSortToggle().should('contain.text', 'Name (Z–A)');
+    evaluationsPage
+      .findBenchmarkCards()
+      .first()
+      .should('have.attr', 'data-testid', 'benchmark-card-test-provider-bench-beta');
+
+    evaluationsPage.findBenchmarkCategoryFilter().click();
+    cy.findByTestId('benchmarks-category-filter-option-Truthfulness').click();
+    evaluationsPage.findBenchmarkCategoryFilter().should('contain.text', 'Category');
+    evaluationsPage.findBenchmarkCategoryFilter().should('not.contain.text', 'All categories');
+    cy.findByTestId('benchmarks-category-filter-badge').should('have.text', '1');
+  });
+
+  it('should open the benchmark details in the page-level drawer', () => {
+    initIntercepts({
+      providers: [
+        mockProvider({
+          id: 'test-provider',
+          name: 'test-provider',
+          title: 'Test Provider',
+          benchmarks: [mockBenchmark({ id: 'bench-alpha', name: 'Alpha Bench' })],
+        }),
+      ],
+    });
+
+    evaluationsPage.visit(NAMESPACE);
+    evaluationsPage.findIndividualBenchmarksTab().click();
+    evaluationsPage.findIndividualBenchmarkCardTitleRegion('test-provider', 'bench-alpha').click();
+
+    evaluationsPage
+      .findBenchmarkDrawerPanel()
+      .should('be.visible')
+      .and('contain.text', 'Alpha Bench');
+    // The panel belongs to the page-level drawer, not the tab body.
+    evaluationsPage
+      .findIndividualBenchmarksContent()
+      .find('[data-testid="benchmark-drawer-panel"]')
+      .should('not.exist');
+
+    evaluationsPage.findBenchmarkDrawerClose().click();
+    evaluationsPage.findBenchmarkDrawerPanel().should('not.exist');
+  });
+
+  it('should close the benchmark drawer when leaving the individual benchmarks tab', () => {
+    initIntercepts({
+      providers: [
+        mockProvider({
+          id: 'test-provider',
+          name: 'test-provider',
+          title: 'Test Provider',
+          benchmarks: [mockBenchmark({ id: 'bench-alpha', name: 'Alpha Bench' })],
+        }),
+      ],
+    });
+
+    evaluationsPage.visit(NAMESPACE);
+    evaluationsPage.findIndividualBenchmarksTab().click();
+    evaluationsPage.findIndividualBenchmarkCardTitleRegion('test-provider', 'bench-alpha').click();
+    evaluationsPage.findBenchmarkDrawerPanel().should('be.visible');
+
+    evaluationsPage.findGalleryTab().click();
+    evaluationsPage.findBenchmarkDrawerPanel().should('not.exist');
+  });
+
+  it('should navigate to the run form from the benchmark drawer', () => {
+    initIntercepts({
+      providers: [
+        mockProvider({
+          id: 'test-provider',
+          name: 'test-provider',
+          title: 'Test Provider',
+          benchmarks: [mockBenchmark({ id: 'bench-alpha', name: 'Alpha Bench' })],
+        }),
+      ],
+    });
+
+    evaluationsPage.visit(NAMESPACE);
+    evaluationsPage.findIndividualBenchmarksTab().click();
+    evaluationsPage.findIndividualBenchmarkCardTitleRegion('test-provider', 'bench-alpha').click();
+    evaluationsPage.findBenchmarkDrawerPrimaryAction().click();
+
+    cy.url().should('include', `/evaluation/${NAMESPACE}/create/start`);
+    cy.url().should('include', 'type=benchmark');
+    cy.url().should('include', 'providerId=test-provider');
+    cy.url().should('include', 'benchmarkId=bench-alpha');
   });
 
   it('should switch to Runs and render its content description', () => {
@@ -262,6 +421,41 @@ describe('Evaluations Page - Tabs', () => {
       .findRunsDescription()
       .should('contain.text', 'Start and manage evaluation runs for models, agents, and datasets.');
     cy.url().should('include', '?tab=runs');
+  });
+
+  it('should render descriptions on the Gallery and Custom collections tabs', () => {
+    evaluationsPage.visit(NAMESPACE);
+    evaluationsPage
+      .findGalleryDescription()
+      .should(
+        'contain.text',
+        'Browse and run benchmark collections curated by Red Hat. Collections that you run are saved to the Custom collections tab for easy access.',
+      );
+
+    evaluationsPage.findEvaluateTab().click();
+    evaluationsPage
+      .findEvaluateDescription()
+      .should(
+        'contain.text',
+        'Create, import, and manage your own benchmark collections. Collections that you create, import, or run from the Gallery are saved here for easy access.',
+      );
+  });
+
+  it('should show the create and import collection actions in the page header', () => {
+    evaluationsPage.visitEvaluate(NAMESPACE);
+
+    evaluationsPage.findImportCollectionButton().should('be.visible');
+    evaluationsPage.findCreateSuiteButton().should('have.text', 'Create collection');
+  });
+
+  it('should redirect the legacy collections route to the Custom collections tab', () => {
+    initIntercepts({ collections: mockBenchmarkSuiteCollections() });
+
+    evaluationsPage.visitLegacyBenchmarkSuites(NAMESPACE);
+
+    cy.url().should('include', `/evaluation/${NAMESPACE}?tab=evaluate`);
+    evaluationsPage.findEvaluateTab().should('have.attr', 'aria-selected', 'true');
+    evaluationsPage.findEvaluateContent().should('exist');
   });
 
   it('should restore the Gallery tab when navigating back', () => {
@@ -285,7 +479,49 @@ describe('Evaluations Page - Tabs', () => {
     evaluationsPage.findBenchmarkSuiteCard('finance-evaluation-suite').should('exist');
     evaluationsPage.findBenchmarkSuiteCard('guardrails-compliance-suite').should('exist');
     evaluationsPage.findBenchmarkSuiteCard('model-suite-2').should('contain.text', 'Model suite 2');
-    evaluationsPage.findBenchmarkSuitesViewAllButton().should('contain.text', 'View all');
+    evaluationsPage.findBenchmarkSuitesFilterToolbar().should('exist');
+    evaluationsPage.findBenchmarkSuitesPagination().should('exist');
+    cy.findByTestId('benchmark-suites-view-all').should('not.exist');
+  });
+
+  it('should sort benchmark suites by date created, name ascending, and name descending', () => {
+    const collections = mockBenchmarkSuiteCollections().map((collection, index) => ({
+      ...collection,
+      resource: {
+        ...collection.resource,
+        // Oldest first in the API response so the default sort has to reverse it.
+        created_at: `2026-01-0${index + 1}T00:00:00Z`,
+      },
+    }));
+    initIntercepts({ collections, collectionsTotalCount: collections.length });
+
+    evaluationsPage.visitEvaluate(NAMESPACE);
+
+    evaluationsPage
+      .findBenchmarkSuitesSortToggle()
+      .should('contain.text', 'Date created (newest first)');
+    evaluationsPage
+      .findBenchmarkSuiteCardNames()
+      .first()
+      .should('have.attr', 'data-testid', 'benchmark-suite-card-name-open-llm-leaderboard-v2');
+
+    evaluationsPage.findBenchmarkSuitesSortToggle().click();
+    evaluationsPage.findBenchmarkSuitesSortOption('name_asc').click();
+
+    evaluationsPage.findBenchmarkSuitesSortToggle().should('contain.text', 'Name (A–Z)');
+    evaluationsPage
+      .findBenchmarkSuiteCardNames()
+      .first()
+      .should('have.attr', 'data-testid', 'benchmark-suite-card-name-agent-safety-suite');
+
+    evaluationsPage.findBenchmarkSuitesSortToggle().click();
+    evaluationsPage.findBenchmarkSuitesSortOption('name_desc').click();
+
+    evaluationsPage.findBenchmarkSuitesSortToggle().should('contain.text', 'Name (Z–A)');
+    evaluationsPage
+      .findBenchmarkSuiteCardNames()
+      .first()
+      .should('have.attr', 'data-testid', 'benchmark-suite-card-name-trace-evaluation-suite');
   });
 
   it('should filter benchmark suites by industry client-side and clear the filter', () => {
@@ -337,7 +573,7 @@ describe('Evaluations Page - Tabs', () => {
     evaluationsPage.visitEvaluate(NAMESPACE);
 
     evaluationsPage.findCuratedSuiteCategories().should('not.exist');
-    evaluationsPage.findBrowseAllBenchmarksExploreButton().should('exist');
+    evaluationsPage.findIndividualBenchmarksTab().should('exist');
   });
 
   it('should show suite contextual actions and the delete confirmation modal', () => {
@@ -501,7 +737,7 @@ describe('Evaluations Page - Table', () => {
     evaluationsPage.findFilterTypeToggle().should('exist');
     evaluationsPage.findFilterTextField().should('exist');
     evaluationsPage.findCompareButton().should('exist');
-    evaluationsPage.findCreateEvaluationButton().should('not.exist');
+    evaluationsPage.findEmptyStatePrimaryAction().should('not.exist');
   });
 });
 
@@ -517,16 +753,79 @@ describe('Evaluations Page - Empty state', () => {
       .findEmptyStateBody()
       .should(
         'contain.text',
-        'Go to collections to create a collection or run an individual benchmark, or select a different project to view its runs.',
+        'No evaluation runs exist in this project. To get started, run a curated evaluation from the Gallery tab.',
       );
+    evaluationsPage.findEmptyStatePrimaryAction().should('have.text', 'View gallery');
+    evaluationsPage.findEmptyStateCreateCollectionButton().should('have.text', 'Create collection');
+    evaluationsPage.findEmptyStateImportCollectionButton().should('have.text', 'Import collection');
   });
 
-  it('should navigate to the Benchmark collections tab when clicking the empty state action', () => {
+  it('should navigate to the Gallery tab when clicking the empty state action', () => {
     evaluationsPage.visitRuns(NAMESPACE);
-    evaluationsPage.findCreateEvaluationButton().click();
-    evaluationsPage.findEvaluateTab().should('have.attr', 'aria-selected', 'true');
-    evaluationsPage.findCreateSuiteCard().should('exist');
-    cy.url().should('include', `/evaluation/${NAMESPACE}?tab=evaluate`);
+    evaluationsPage.findEmptyStatePrimaryAction().click();
+    evaluationsPage.findGalleryTab().should('have.attr', 'aria-selected', 'true');
+    evaluationsPage.findGalleryContent().should('exist');
+    cy.url().should('include', `/evaluation/${NAMESPACE}?tab=gallery`);
+  });
+
+  it('should create a collection from the empty state', () => {
+    evaluationsPage.visitRuns(NAMESPACE);
+    evaluationsPage.findEmptyStateCreateCollectionButton().click();
+    cy.url().should('include', `/evaluation/${NAMESPACE}/create/collections/new`);
+  });
+
+  it('should open import from the empty state', () => {
+    evaluationsPage.visitRuns(NAMESPACE);
+    evaluationsPage.findEmptyStateImportCollectionButton().should('be.enabled').click();
+    cy.findByTestId('import-collection-modal').should('be.visible');
+  });
+});
+
+describe('Evaluations Page - Collections empty state', () => {
+  beforeEach(() => {
+    initIntercepts({ jobs: [], collections: [] });
+  });
+
+  it('should render the collections empty state with the design copy and actions', () => {
+    evaluationsPage.visit(NAMESPACE);
+    evaluationsPage.findEvaluateTab().click();
+
+    evaluationsPage.findCollectionsEmptyState().should('exist');
+    evaluationsPage
+      .findCollectionsEmptyStateBody()
+      .should(
+        'contain.text',
+        'Create a benchmark collection to group benchmarks and pass criteria, or start with a curated collection in the gallery.',
+      );
+    evaluationsPage.findCollectionsEmptyStatePrimaryAction().should('have.text', 'View gallery');
+    evaluationsPage
+      .findCollectionsEmptyStateCreateButton()
+      .should('have.text', 'Create collection');
+    evaluationsPage
+      .findCollectionsEmptyStateImportButton()
+      .should('have.text', 'Import collection')
+      .and('be.enabled');
+    // Filter-empty messaging keeps its existing copy.
+    evaluationsPage.findCollectionsEmptyState().should('not.contain.text', 'No collections found');
+    // The filter/sort toolbar is hidden when there are no collections at all.
+    cy.findByTestId('benchmark-suites-filter-toolbar').should('not.exist');
+  });
+
+  it('should navigate to the Gallery from the collections empty state', () => {
+    evaluationsPage.visit(NAMESPACE);
+    evaluationsPage.findEvaluateTab().click();
+    evaluationsPage.findCollectionsEmptyStatePrimaryAction().click();
+
+    evaluationsPage.findGalleryTab().should('have.attr', 'aria-selected', 'true');
+    evaluationsPage.findGalleryContent().should('exist');
+    cy.url().should('include', `/evaluation/${NAMESPACE}?tab=gallery`);
+  });
+
+  it('should open import from the collections empty state', () => {
+    evaluationsPage.visit(NAMESPACE);
+    evaluationsPage.findEvaluateTab().click();
+    evaluationsPage.findCollectionsEmptyStateImportButton().click();
+    cy.findByTestId('import-collection-modal').should('be.visible');
   });
 });
 
@@ -728,7 +1027,9 @@ describe('Evaluations Page - Failure summary scroll', () => {
   const LONG_FAILURE_MESSAGE = Array.from(
     { length: 40 },
     (_, i) =>
-      `${i + 1}. Benchmark execution failed because the eval harness timed out waiting for the model server to accept connections.`,
+      `${
+        i + 1
+      }. Benchmark execution failed because the eval harness timed out waiting for the model server to accept connections.`,
   ).join(' ');
 
   const longFailedJob = mockEvaluationJob({
